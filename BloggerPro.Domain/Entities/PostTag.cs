@@ -2,7 +2,7 @@
 
 namespace BloggerPro.Domain.Entities
 {
-    public class PostTag 
+    public class PostTag : IEntity
     {
         public Guid PostId { get; set; }
         public Post Post { get; set; } = null!;

@@ -2,79 +2,79 @@
 using BloggerPro.Application.DTOs.Admin;
 using BloggerPro.Application.Interfaces.Services;
 using BloggerPro.Domain.Entities;
-using BloggerPro.Domain.Repositories;
 using BloggerPro.Shared.Utilities.Results;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace BloggerPro.Infrastructure.Services;
 
 public class UserAdminModerationService : IUserAdminModerationService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly UserManager<User> _userManager;
+    private readonly RoleManager<Role> _roleManager;
     private readonly IMapper _mapper;
 
-    public UserAdminModerationService(IUnitOfWork uow, IMapper mapper)
+    public UserAdminModerationService(
+        UserManager<User> userManager,
+        RoleManager<Role> roleManager,
+        IMapper mapper)
     {
-        _uow = uow;
+        _userManager = userManager;
+        _roleManager = roleManager;
         _mapper = mapper;
     }
 
     public async Task<IDataResult<List<UserListDto>>> GetAllUsersWithRolesAsync()
     {
-        var users = await _uow.Users.Query()
-            .Include(u => u.UserRoles)
-                .ThenInclude(ur => ur.Role)
-            .ToListAsync();
+        var users = await _userManager.Users.ToListAsync();
 
-        var dtoList = users.Select(u => new UserListDto
+        var dtoList = new List<UserListDto>();
+
+        foreach (var user in users)
         {
-            Id = u.Id,
-            UserName = u.Username,
-            Email = u.Email,
-            IsBlocked = u.IsBlocked,
-            Roles = u.UserRoles.Select(ur => ur.Role.Name).ToList()
-        }).ToList();
+            var roles = await _userManager.GetRolesAsync(user);
+            dtoList.Add(new UserListDto
+            {
+                Id = user.Id,
+                UserName = user.UserName,
+                Email = user.Email,
+                IsBlocked = user.IsBlocked,
+                Roles = roles.ToList()
+            });
+        }
 
         return new SuccessDataResult<List<UserListDto>>(dtoList);
     }
 
     public async Task<IResult> UpdateUserRolesAsync(UpdateUserRolesDto dto)
     {
-        var user = await _uow.Users.GetByIdAsync(dto.UserId);
+        var user = await _userManager.FindByIdAsync(dto.UserId.ToString());
         if (user == null)
             return new ErrorResult("Kullanıcı bulunamadı.");
 
-        user.UserRoles.Clear();
+        var currentRoles = await _userManager.GetRolesAsync(user);
+        var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
+        if (!removeResult.Succeeded)
+            return new ErrorResult("Mevcut roller silinemedi.");
 
-        foreach (var roleName in dto.Roles)
-        {
-            var role = await _uow.Roles.Query().FirstOrDefaultAsync(r => r.Name == roleName);
-            if (role != null)
-            {
-                user.UserRoles.Add(new UserRole
-                {
-                    UserId = user.Id,
-                    RoleId = role.Id
-                });
-            }
-        }
-
-        await _uow.Users.UpdateAsync(user);
-        await _uow.SaveChangesAsync();
+        var addResult = await _userManager.AddToRolesAsync(user, dto.Roles);
+        if (!addResult.Succeeded)
+            return new ErrorResult("Yeni roller eklenemedi.");
 
         return new SuccessResult("Kullanıcının rolleri güncellendi.");
     }
 
     public async Task<IResult> ToggleUserBlockAsync(ToggleUserBlockDto dto)
     {
-        var user = await _uow.Users.GetByIdAsync(dto.UserId);
+        var user = await _userManager.FindByIdAsync(dto.UserId.ToString());
         if (user == null)
             return new ErrorResult("Kullanıcı bulunamadı.");
 
         user.IsBlocked = dto.Block;
 
-        await _uow.Users.UpdateAsync(user);
-        await _uow.SaveChangesAsync();
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+            return new ErrorResult("Kullanıcı engelleme durumu güncellenemedi.");
 
         return new SuccessResult(dto.Block ? "Kullanıcı engellendi." : "Kullanıcının engeli kaldırıldı.");
     }

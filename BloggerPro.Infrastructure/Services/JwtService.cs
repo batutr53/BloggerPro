@@ -20,14 +20,15 @@ public class JwtService : IJwtService
 
     public TokenDto GenerateToken(User user, List<string> roles)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:Secret"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim("username", user.Username),
+            new Claim("username", user.UserName),
+            new Claim("fullName", $"{user.FirstName} {user.LastName}".Trim()),
         };
 
         foreach (var role in roles)
@@ -38,8 +39,8 @@ public class JwtService : IJwtService
         var expires = DateTime.UtcNow.AddHours(2);
 
         var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
+            issuer: _configuration["JwtSettings:ValidIssuer"],
+            audience: _configuration["JwtSettings:ValidAudience"],
             claims: claims,
             expires: expires,
             signingCredentials: creds

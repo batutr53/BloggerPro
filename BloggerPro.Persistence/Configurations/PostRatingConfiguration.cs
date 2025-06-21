@@ -20,5 +20,8 @@ public class PostRatingConfiguration : IEntityTypeConfiguration<PostRating>
 
         builder.Property(x => x.RatingValue)
                .IsRequired();
+
+        builder.Property(x => x.CreatedAt).IsRequired();
+        builder.Property(x => x.UpdatedAt).IsRequired(false);
     }
 }

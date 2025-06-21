@@ -1,10 +1,11 @@
 ﻿using BloggerPro.Domain.Common;
+using Microsoft.AspNetCore.Identity;
 
 namespace BloggerPro.Domain.Entities;
 
-public class Role : BaseEntity
+public class Role : IdentityRole<Guid>, IEntity
 {
-    public string Name { get; set; } = null!; // örnek: Admin, User, Editor
-
-    public ICollection<UserRole> UserRoles { get; set; } = new HashSet<UserRole>();
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+    public bool IsDeleted { get; set; } = false;
 }

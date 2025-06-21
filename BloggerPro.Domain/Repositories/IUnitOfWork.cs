@@ -14,5 +14,13 @@ public interface IUnitOfWork
     IGenericRepository<PostRating> PostRatings { get; }
     IGenericRepository<PostLike> PostLikes { get; }
     IGenericRepository<SeoMetadata> SeoMetadatas { get; }
+    IGenericRepository<PostCategory> PostCategories { get; }
+    IGenericRepository<PostTag> PostTags { get; }
+    IGenericRepository<PostModule> PostModules { get; }
+    IGenericRepository<Notification> Notifications { get; }
+    IGenericRepository<UserFollower> UserFollowers { get; }
+
+
+        
     Task<int> SaveChangesAsync();
 }

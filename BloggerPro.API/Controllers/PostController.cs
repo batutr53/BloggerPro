@@ -1,7 +1,7 @@
 ﻿using BloggerPro.Application.DTOs.Post;
 using BloggerPro.Application.DTOs.PostModule;
 using BloggerPro.Application.Interfaces.Services;
-using BloggerPro.Shared.Utilities.Results;
+using BloggerPro.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -18,62 +18,165 @@ public class PostController : ControllerBase
     {
         _postService = postService;
     }
-    [HttpPost("{postId}/modules/reorder")]
-    public async Task<IActionResult> ReorderModules(Guid postId, [FromBody] List<ModuleSortOrderDto> list) { return StatusCode((await _postService.ReorderModulesAsync(postId, list)).HttpStatusCode); }
 
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetPostWithModules(Guid id)
-    {
-        var result = await _postService.GetPostWithModulesAsync(id);
-        return StatusCode(result.HttpStatusCode, result);
-    }
-    [HttpPost("filter")]
-    [AllowAnonymous]
-    public async Task<IActionResult> FilterPosts([FromBody] PostFilterDto dto)
-    {
-        var result = await _postService.FilterPostsAsync(dto);
-        return Ok(result);
-    }
-    [HttpGet]
-    [AllowAnonymous]
-    public async Task<IActionResult> GetAll()
-    {
-        var result = await _postService.GetPostsPagedAsync();
-        return StatusCode(result.HttpStatusCode, result);
-    }
+    private Guid GetUserId() =>
+        Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-    [HttpGet("{slug}")]
-    [AllowAnonymous]
-    public async Task<IActionResult> GetDetail(string slug)
-    {
-        var result = await _postService.GetPostBySlugAsync(slug);
-        return StatusCode(result.HttpStatusCode, result);
-    }
-
+    // Post CRUD
+    [Authorize(Roles = $"{UserRoles.User},{UserRoles.Admin}")]
     [HttpPost]
-    [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> Create([FromBody] PostCreateDto dto)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-        var result = await _postService.CreatePostAsync(dto, Guid.Parse(userId));
+        var result = await _postService.CreatePostAsync(dto, GetUserId());
         return StatusCode(result.HttpStatusCode, result);
     }
 
+    [Authorize]
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var result = await _postService.GetPostByIdAsync(id, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
     [HttpPut]
-    [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> Update([FromBody] PostUpdateDto dto)
     {
-        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var result = await _postService.UpdatePostAsync(dto, userId);
+        var result = await _postService.UpdatePostAsync(dto, GetUserId());
         return StatusCode(result.HttpStatusCode, result);
     }
 
-
-    [HttpDelete("{id}")]
-    [Authorize(Roles = "User,Admin")]
+    [Authorize]
+    [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var result = await _postService.DeletePostAsync(id);
+        var result = await _postService.DeletePostAsync(id, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    // Post listing
+    [HttpPost("all")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAll([FromBody] PostFilterDto filter, int page = 1, int pageSize = 10)
+    {
+        var result = await _postService.GetAllPostsAsync(filter, page, pageSize);
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpPost("my-posts")]
+    public async Task<IActionResult> GetByAuthor([FromBody] PostFilterDto filter, int page = 1, int pageSize = 10)
+    {
+        var result = await _postService.GetPostsByAuthorIdAsync(GetUserId(), filter, page, pageSize);
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    // Post visibility and status
+    [Authorize]
+    [HttpPut("{postId:guid}/status")]
+    public async Task<IActionResult> UpdateStatus(Guid postId, [FromQuery] int status)
+    {
+        var result = await _postService.UpdatePostStatusAsync(postId, (Domain.Enums.PostStatus)status, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpPut("{postId:guid}/visibility")]
+    public async Task<IActionResult> UpdateVisibility(Guid postId, [FromQuery] int visibility)
+    {
+        var result = await _postService.UpdatePostVisibilityAsync(postId, (Domain.Enums.PostVisibility)visibility, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpPut("{postId:guid}/featured-toggle")]
+    public async Task<IActionResult> ToggleFeatured(Guid postId)
+    {
+        var result = await _postService.TogglePostFeaturedStatusAsync(postId, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    // Modules
+    [Authorize]
+    [HttpPost("{postId:guid}/modules")]
+    public async Task<IActionResult> AddModule(Guid postId, [FromBody] CreatePostModuleDto dto)
+    {
+        var result = await _postService.AddModuleToPostAsync(postId, dto, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpPut("{postId:guid}/modules")]
+    public async Task<IActionResult> UpdateModule(Guid postId, [FromBody] UpdatePostModuleDto dto)
+    {
+        var result = await _postService.UpdateModuleAsync(postId, dto, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpDelete("{postId:guid}/modules/{moduleId:guid}")]
+    public async Task<IActionResult> RemoveModule(Guid postId, Guid moduleId)
+    {
+        var result = await _postService.RemoveModuleFromPostAsync(postId, moduleId, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpPost("{postId:guid}/modules/reorder")]
+    public async Task<IActionResult> ReorderModules(Guid postId, [FromBody] List<ModuleSortOrderDto> newOrder)
+    {
+        var result = await _postService.ReorderModulesAsync(postId, newOrder, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    // Interactions
+    [Authorize]
+    [HttpPost("{postId:guid}/like")]
+    public async Task<IActionResult> Like(Guid postId)
+    {
+        var result = await _postService.LikePostAsync(postId, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpDelete("{postId:guid}/like")]
+    public async Task<IActionResult> Unlike(Guid postId)
+    {
+        var result = await _postService.UnlikePostAsync(postId, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpPost("{postId:guid}/rate")]
+    public async Task<IActionResult> Rate(Guid postId, [FromQuery] int score)
+    {
+        var result = await _postService.RatePostAsync(postId, score, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpDelete("{postId:guid}/rate")]
+    public async Task<IActionResult> RemoveRating(Guid postId)
+    {
+        var result = await _postService.RemoveRatingAsync(postId, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    // Stats
+    [Authorize]
+    [HttpGet("{postId:guid}/stats")]
+    public async Task<IActionResult> GetPostStats(Guid postId)
+    {
+        var result = await _postService.GetPostStatsAsync(postId, GetUserId());
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
+    [Authorize]
+    [HttpGet("my-stats")]
+    public async Task<IActionResult> GetUserStats()
+    {
+        var result = await _postService.GetUserPostStatsAsync(GetUserId());
         return StatusCode(result.HttpStatusCode, result);
     }
 }

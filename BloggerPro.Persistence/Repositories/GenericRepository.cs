@@ -1,4 +1,4 @@
-﻿using BloggerPro.Domain.Common;
+using BloggerPro.Domain.Common;
 using BloggerPro.Domain.Repositories;
 using BloggerPro.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
@@ -39,4 +39,40 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class, IEnti
         _context.RemoveRange(entities);
     }
     public IQueryable<T> Query() => _context.Set<T>().AsQueryable();
+    
+    public IQueryable<T> FindByCondition(Expression<Func<T, bool>> predicate, bool trackChanges = true)
+    {
+        var query = _context.Set<T>().Where(predicate);
+        
+        if (!trackChanges)
+        {
+            query = query.AsNoTracking();
+        }
+        
+        return query;
+    }
+    public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
+    {
+        return await _context.Set<T>().FirstOrDefaultAsync(predicate);
+    }
+
+    public async Task<int> CountAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Set<T>().CountAsync(cancellationToken);
+    }
+
+    public async Task<int> CountAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+    {
+        return await _context.Set<T>().CountAsync(predicate, cancellationToken);
+    }
+
+    public async Task<bool> AnyAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Set<T>().AnyAsync(cancellationToken);
+    }
+
+    public async Task<bool> AnyAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+    {
+        return await _context.Set<T>().AnyAsync(predicate, cancellationToken);
+    }
 }

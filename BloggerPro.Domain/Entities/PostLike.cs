@@ -8,7 +8,8 @@ namespace BloggerPro.Domain.Entities
         public User User { get; set; } = null!;
         public Guid PostId { get; set; }
         public Post Post { get; set; } = null!;
-
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
         public DateTime LikedAt { get; set; } = DateTime.UtcNow;
     }
 

@@ -50,7 +50,7 @@ namespace BloggerPro.Infrastructure.Services
                 .Select(u => new UserSummaryDto
                 {
                     Id = u.Id,
-                    UserName = u.Username,
+                    UserName = u.UserName,
                     TotalPosts = posts.Count(p => p.AuthorId == u.Id),
                     TotalComments = comments.Count(c => c.UserId == u.Id),
                     TotalRatings = posts.Sum(p => p.Ratings.Count(r => r.UserId == u.Id))

@@ -10,7 +10,8 @@ namespace BloggerPro.Domain.Entities
         public Post Post { get; set; } = null!;
         public int RatingValue { get; set; }
         public DateTime RatedAt { get; set; } = DateTime.UtcNow;
-
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; } 
     }
 
 }

@@ -2,7 +2,6 @@
 using BloggerPro.Application.DTOs.Auth;
 using BloggerPro.Application.Interfaces.Services;
 using BloggerPro.Domain.Entities;
-using BloggerPro.Domain.Repositories;
 using BloggerPro.Shared.Utilities.Results;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -11,83 +10,84 @@ namespace BloggerPro.Infrastructure.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly UserManager<User> _userManager;
+    private readonly RoleManager<Role> _roleManager;
     private readonly IJwtService _jwtService;
     private readonly IMapper _mapper;
-    private readonly IPasswordHasher<User> _passwordHasher;
 
-    public AuthService(IUnitOfWork unitOfWork, IJwtService jwtService, IMapper mapper, IPasswordHasher<User> passwordHasher)
+    public AuthService(UserManager<User> userManager, RoleManager<Role> roleManager, IJwtService jwtService, IMapper mapper)
     {
-        _unitOfWork = unitOfWork;
+        _userManager = userManager;
+        _roleManager = roleManager;
         _jwtService = jwtService;
         _mapper = mapper;
-        _passwordHasher = passwordHasher;
     }
-
 
     public async Task<DataResult<TokenDto>> RegisterAsync(RegisterDto dto)
     {
-        var exists = await _unitOfWork.Users.Query().AnyAsync(x => x.Email == dto.Email);
-        if (exists)
+        var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+        if (existingUser != null)
             return new ErrorDataResult<TokenDto>("Bu email zaten kayıtlı.");
 
         var user = new User
         {
             Email = dto.Email,
-            Username = dto.Username,
-            PasswordHash = "", 
+            UserName = dto.Username,
             CreatedAt = DateTime.UtcNow
         };
 
-        user.PasswordHash = _passwordHasher.HashPassword(user, dto.Password);
+        var result = await _userManager.CreateAsync(user, dto.Password);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return new ErrorDataResult<TokenDto>($"Kullanıcı oluşturulamadı: {errors}");
+        }
 
-        var role = await _unitOfWork.Roles.Query().FirstOrDefaultAsync(r => r.Name == "User");
-        if (role == null)
+        if (!await _roleManager.RoleExistsAsync("User"))
             return new ErrorDataResult<TokenDto>("'User' rolü sistemde tanımlı değil.");
 
-        user.UserRoles.Add(new UserRole { RoleId = role.Id, User = user });
+        await _userManager.AddToRoleAsync(user, "User");
 
-        await _unitOfWork.Users.AddAsync(user);
-        await _unitOfWork.SaveChangesAsync();
+        var roles = await _userManager.GetRolesAsync(user);
+        var token = _jwtService.GenerateToken(user, roles.ToList());
 
-        var token = _jwtService.GenerateToken(user, new List<string> { role.Name });
         return new SuccessDataResult<TokenDto>(token, "Kayıt başarılı.");
     }
 
     public async Task<DataResult<TokenDto>> LoginAsync(LoginDto dto)
     {
-        var user = await _unitOfWork.Users.Query()
-            .Include(x => x.UserRoles).ThenInclude(x => x.Role)
-            .FirstOrDefaultAsync(x => x.Email == dto.Email);
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.Email == dto.Email);
 
-        if (user is null)
+        if (user == null)
             return new ErrorDataResult<TokenDto>("Geçersiz kullanıcı.");
 
-        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.Password);
-        if (result == PasswordVerificationResult.Failed)
+        var passwordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
+        if (!passwordValid)
             return new ErrorDataResult<TokenDto>("Şifre yanlış.");
 
-        var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
-        var token = _jwtService.GenerateToken(user, roles);
+        var roles = await _userManager.GetRolesAsync(user);
+        var token = _jwtService.GenerateToken(user, roles.ToList());
 
         return new SuccessDataResult<TokenDto>(token, "Giriş başarılı.");
     }
 
     public async Task<DataResult<UserInfoDto>> GetMeAsync(Guid userId)
     {
-        var user = await _unitOfWork.Users.Query()
-            .Include(x => x.UserRoles).ThenInclude(x => x.Role)
+        var user = await _userManager.Users
             .FirstOrDefaultAsync(x => x.Id == userId);
 
         if (user == null)
             return new ErrorDataResult<UserInfoDto>("Kullanıcı bulunamadı.");
 
+        var roles = await _userManager.GetRolesAsync(user);
+
         var dto = new UserInfoDto
         {
             Id = user.Id,
-            Username = user.Username,
+            Username = user.UserName,
             Email = user.Email,
-            Roles = user.UserRoles.Select(ur => ur.Role.Name).ToList()
+            Roles = roles.ToList()
         };
 
         return new SuccessDataResult<UserInfoDto>(dto);

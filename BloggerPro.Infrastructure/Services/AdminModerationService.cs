@@ -33,7 +33,7 @@ namespace BloggerPro.Infrastructure.Services
                 Id = p.Id,
                 Title = p.Title,
                 Slug = p.Slug,
-                AuthorName = p.Author.Username,
+                AuthorName = p.Author.UserName,
                 CommentCount = p.Comments.Count,
                 LikeCount = p.Likes.Count,
                 RatingCount = p.Ratings.Count,
