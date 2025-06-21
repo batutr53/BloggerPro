@@ -129,41 +129,72 @@ public class PostService : IPostService
     {
         var post = await _unitOfWork.Posts.Query()
             .Include(p => p.Modules)
-             .Include(p => p.PostTags)
+                .ThenInclude(m => m.SeoMetadata)
+            .Include(p => p.PostTags)
             .FirstOrDefaultAsync(p => p.Id == dto.Id && p.AuthorId == userId);
 
         if (post == null)
             return new ErrorResult("Post bulunamadı veya yetkiniz yok.");
 
+        // Post temel bilgilerini güncelle
         _mapper.Map(dto, post);
+
+        // Tag'leri güncelle
         post.PostTags.Clear();
         foreach (var tagId in dto.TagIds)
         {
             post.PostTags.Add(new PostTag { PostId = post.Id, TagId = tagId });
         }
 
-        // Mevcut modülleri sil
+        // Modülleri ve SEO metadata'larını temizle
+        var existingModuleIds = post.Modules.Select(m => m.Id).ToList();
+        var existingSeo = await _unitOfWork.SeoMetadatas.Query()
+            .Where(s => s.PostModuleId.HasValue && existingModuleIds.Contains(s.PostModuleId.Value))
+            .ToListAsync();
+        _unitOfWork.SeoMetadatas.DeleteRange(existingSeo);
+
         post.Modules.Clear();
 
-        if (dto.Modules != null && dto.Modules.Any())
+        // Yeni modülleri ve SEO metadata'ları oluştur
+        foreach (var moduleDto in dto.Modules)
         {
-            post.Modules = dto.Modules.Select(m => new PostModule
+            var module = new PostModule
             {
-                Type = m.Type,
-                Content = m.Content,
-                MediaUrl = m.MediaUrl,
-                Alignment = m.Alignment,
-                Width = m.Width,
-                SortOrder = m.SortOrder
-            }).ToList();
+                Id = Guid.NewGuid(),
+                PostId = post.Id,
+                Type = moduleDto.Type,
+                Content = moduleDto.Content,
+                MediaUrl = moduleDto.MediaUrl,
+                Order = moduleDto.Order,
+                SortOrder = moduleDto.Order,
+                Alignment = moduleDto.Alignment,
+                Width = moduleDto.Width
+            };
+
+            if (moduleDto.SeoMetadata != null)
+            {
+                module.SeoMetadata = new List<SeoMetadata>
+    {
+        new SeoMetadata
+        {
+            Title = moduleDto.SeoMetadata.Title,
+            Description = moduleDto.SeoMetadata.Description,
+            Keywords = moduleDto.SeoMetadata.Keywords,
+            LanguageCode = moduleDto.SeoMetadata.LanguageCode,
+            CanonicalGroupId = moduleDto.SeoMetadata.CanonicalGroupId,
+            PostModuleId = module.Id
+        }
+    };
+            }
+
+            post.Modules.Add(module);
         }
 
         await _unitOfWork.Posts.UpdateAsync(post);
         await _unitOfWork.SaveChangesAsync();
 
-        return new SuccessResult("Post güncellendi.");
+        return new SuccessResult("Post ve modüller başarıyla güncellendi.");
     }
-
 
     public async Task<Result> DeletePostAsync(Guid id)
     {

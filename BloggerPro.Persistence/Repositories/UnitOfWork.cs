@@ -21,6 +21,7 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<CommentLike> CommentLikes => new GenericRepository<CommentLike>(_context);
     public IGenericRepository<PostRating> PostRatings =>  new GenericRepository<PostRating>(_context);
     public IGenericRepository<PostLike> PostLikes => new GenericRepository<PostLike>(_context);
+    public IGenericRepository<SeoMetadata> SeoMetadatas => new GenericRepository<SeoMetadata>(_context);
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 }

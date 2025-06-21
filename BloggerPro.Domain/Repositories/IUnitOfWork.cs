@@ -13,6 +13,6 @@ public interface IUnitOfWork
     IGenericRepository<CommentLike> CommentLikes { get; }
     IGenericRepository<PostRating> PostRatings { get; }
     IGenericRepository<PostLike> PostLikes { get; }
-
+    IGenericRepository<SeoMetadata> SeoMetadatas { get; }
     Task<int> SaveChangesAsync();
 }

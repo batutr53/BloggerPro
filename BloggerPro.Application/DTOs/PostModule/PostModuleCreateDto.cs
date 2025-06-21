@@ -1,4 +1,5 @@
-﻿using BloggerPro.Domain.Enums;
+﻿using BloggerPro.Application.DTOs.SeoMetadata;
+using BloggerPro.Domain.Enums;
 
 namespace BloggerPro.Application.DTOs.PostModule
 {
@@ -10,6 +11,9 @@ namespace BloggerPro.Application.DTOs.PostModule
         public string? Alignment { get; set; }
         public string? Width { get; set; }
         public int SortOrder { get; set; }
+        public Guid? TagId { get; set; }
+
+        public List<SeoMetadataCreateDto>? SeoMetadata { get; set; }
     }
 
 }

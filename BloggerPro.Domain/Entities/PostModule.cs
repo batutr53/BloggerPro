@@ -18,4 +18,6 @@ public class PostModule : BaseEntity
 
     public string? Alignment { get; set; } // "left", "right", "center"
     public string? Width { get; set; } // responsive width için: "50%", "100%" vs.
+    public ICollection<SeoMetadata> SeoMetadata { get; set; } = new List<SeoMetadata>();
+
 }
