@@ -13,6 +13,7 @@ namespace BloggerPro.Application.Mapping
                 .ForMember(dest => dest.FollowerProfileImage, opt => opt.MapFrom(src => src.Follower.ProfileImage))
                 .ForMember(dest => dest.FollowingUsername, opt => opt.MapFrom(src => src.Following.UserName))
                 .ForMember(dest => dest.FollowingProfileImage, opt => opt.MapFrom(src => src.Following.ProfileImage));
+            CreateMap<UserFollower, UserFollowerDto>().ReverseMap();
         }
     }
 }

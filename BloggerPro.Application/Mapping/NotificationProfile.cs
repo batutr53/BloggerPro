@@ -10,6 +10,7 @@ namespace BloggerPro.Application.Mapping
         {
             CreateMap<Notification, NotificationResponseDto>();
             CreateMap<CreateNotificationDto, Notification>();
+            CreateMap<Notification, NotificationDto>();
         }
     }
 }
