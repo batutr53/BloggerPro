@@ -8,6 +8,8 @@ namespace BloggerPro.Application.Mapping
     {
         public UserProfile()
         {
+            CreateMap<User, UserDto>();
+
             // User -> UserProfileDto
             CreateMap<User, UserProfileDto>()
                 .ForMember(dest => dest.ProfileImageUrl, opt => opt.MapFrom(src => src.ProfileImageUrl))

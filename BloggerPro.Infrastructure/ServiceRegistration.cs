@@ -39,7 +39,7 @@ public static class ServiceRegistration
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
-
+        services.AddScoped<IAdminModerationService, AdminModerationService>();
         return services;
     }
 }

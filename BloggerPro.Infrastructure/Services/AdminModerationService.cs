@@ -61,14 +61,30 @@ namespace BloggerPro.Infrastructure.Services
 
         public async Task<Result> DeletePostAsync(Guid postId)
         {
-            var post = await _unitOfWork.Posts.GetByIdAsync(postId);
+            var post = await _unitOfWork.Posts.Query()
+      .Include(p => p.Modules)
+          .ThenInclude(m => m.SeoMetadata)
+      .FirstOrDefaultAsync(p => p.Id == postId);
+
             if (post == null)
                 return new ErrorResult("Post bulunamadı.");
 
+            // SeoMetadata'ları sil
+            var allSeoMetadata = post.Modules
+                .SelectMany(m => m.SeoMetadata)
+                .ToList();
+
+             _unitOfWork.SeoMetadatas.DeleteRange(allSeoMetadata);
+            
+            // PostModules'ları sil
+            _unitOfWork.PostModules.DeleteRange(post.Modules);
+
+            // Son olarak postu sil
             await _unitOfWork.Posts.DeleteAsync(post);
             await _unitOfWork.SaveChangesAsync();
 
             return new SuccessResult("Post silindi.");
+
         }
     }
 
