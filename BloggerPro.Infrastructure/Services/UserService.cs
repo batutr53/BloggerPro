@@ -6,9 +6,14 @@ using BloggerPro.Domain.Entities;
 using BloggerPro.Domain.Enums;
 using BloggerPro.Domain.Repositories;
 using BloggerPro.Shared.Utilities.Results;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -18,19 +23,37 @@ namespace BloggerPro.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<UserService> _logger;
+        private const string UploadsFolder = "uploads/profile-images";
 
-        public UserService(IUnitOfWork unitOfWork, IMapper mapper)
+        public UserService(
+            IUnitOfWork unitOfWork, 
+            IMapper mapper,
+            IWebHostEnvironment environment,
+            ILogger<UserService> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _environment = environment;
+            _logger = logger;
+            
+            // Ensure uploads directory exists
+            var uploadsPath = Path.Combine(_environment.WebRootPath, UploadsFolder);
+            if (!Directory.Exists(uploadsPath))
+            {
+                Directory.CreateDirectory(uploadsPath);
+            }
         }
 
         public async Task<DataResult<UserProfileDto>> GetUserProfileAsync(Guid userId, Guid? currentUserId = null)
         {
             var user = await _unitOfWork.Users
-                .FindByCondition(u => u.Id == userId)
-                .Include(u => u.Posts)
-                .FirstOrDefaultAsync();
+     .FindByCondition(u => u.Id == userId)
+     .Include(u => u.Posts)
+     .Include(u => u.Followers)
+     .Include(u => u.Following)
+     .FirstOrDefaultAsync();
 
             if (user == null)
             {
@@ -60,7 +83,7 @@ namespace BloggerPro.Infrastructure.Services
         }
 
 
-        public async Task<Result> UpdateProfileAsync(Guid userId, UpdateProfileDto dto)
+        public async Task<Result> UpdateProfileAsync(Guid userId, UpdateUserProfileDto dto)
         {
             var user = await _unitOfWork.Users.FindByCondition(u => u.Id == userId).FirstOrDefaultAsync();
             if (user == null)
@@ -69,14 +92,19 @@ namespace BloggerPro.Infrastructure.Services
             }
 
             // Update fields if they are provided in the DTO
+            if (!string.IsNullOrWhiteSpace(dto.FirstName)) user.FirstName = dto.FirstName;
+            if (!string.IsNullOrWhiteSpace(dto.LastName)) user.LastName = dto.LastName;
             if (!string.IsNullOrWhiteSpace(dto.Bio)) user.Bio = dto.Bio;
-            if (!string.IsNullOrWhiteSpace(dto.Website)) user.Website = dto.Website;
-            if (dto.BirthDate.HasValue) user.BirthDate = dto.BirthDate;
+            if (!string.IsNullOrWhiteSpace(dto.ProfileImageUrl)) user.ProfileImageUrl = dto.ProfileImageUrl;
             if (!string.IsNullOrWhiteSpace(dto.Location)) user.Location = dto.Location;
+            if (dto.BirthDate.HasValue) user.BirthDate = dto.BirthDate;
+            if (!string.IsNullOrWhiteSpace(dto.Website)) user.Website = dto.Website;
             if (!string.IsNullOrWhiteSpace(dto.FacebookUrl)) user.FacebookUrl = dto.FacebookUrl;
             if (!string.IsNullOrWhiteSpace(dto.TwitterUrl)) user.TwitterUrl = dto.TwitterUrl;
             if (!string.IsNullOrWhiteSpace(dto.InstagramUrl)) user.InstagramUrl = dto.InstagramUrl;
             if (!string.IsNullOrWhiteSpace(dto.LinkedInUrl)) user.LinkedInUrl = dto.LinkedInUrl;
+
+            user.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.SaveChangesAsync();
@@ -84,6 +112,92 @@ namespace BloggerPro.Infrastructure.Services
             return new SuccessResult("Profile updated successfully");
         }
 
+        public async Task<Result> ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
+        {
+            var user = await _unitOfWork.Users.FindByCondition(u => u.Id == userId)
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+            {
+                return new ErrorResult("User not found");
+            }
+
+            // Verify current password
+            var passwordHasher = new PasswordHasher<User>();
+            var result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.CurrentPassword);
+
+            if (result != PasswordVerificationResult.Success)
+            {
+                return new ErrorResult("Current password is incorrect");
+            }
+
+            // Update password
+            var newPasswordHash = passwordHasher.HashPassword(user, dto.NewPassword);
+            user.PasswordHash = newPasswordHash;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            return new SuccessResult("Password changed successfully");
+        }
+
+        public async Task<DataResult<string>> UploadProfileImageAsync(Guid userId, IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return new ErrorDataResult<string>("No file uploaded");
+            }
+
+            // Validate file type
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (string.IsNullOrEmpty(fileExtension) || !allowedExtensions.Contains(fileExtension))
+            {
+                return new ErrorDataResult<string>("Invalid file type. Only JPG, JPEG, PNG, and GIF are allowed.");
+            }
+
+            // Validate file size (max 5MB)
+            const int maxFileSize = 5 * 1024 * 1024; // 5MB
+            if (file.Length > maxFileSize)
+            {
+                return new ErrorDataResult<string>("File size exceeds the maximum limit of 5MB");
+            }
+
+            var user = await _unitOfWork.Users.FindByCondition(u => u.Id == userId).FirstOrDefaultAsync();
+            if (user == null)
+            {
+                return new ErrorDataResult<string>("User not found");
+            }
+
+            try
+            {
+                // Generate unique filename
+                var fileName = $"profile_{userId}_{DateTime.UtcNow:yyyyMMddHHmmss}{fileExtension}";
+                var filePath = Path.Combine(_environment.WebRootPath, UploadsFolder, fileName);
+
+                // Save file
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                // Update user's profile image URL
+                var fileUrl = $"/{UploadsFolder}/{fileName}";
+                user.ProfileImageUrl = fileUrl;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.Users.UpdateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                return new SuccessDataResult<string>(fileUrl, "Profile image uploaded successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading profile image for user {UserId}", userId);
+                return new ErrorDataResult<string>("An error occurred while uploading the file");
+            }
+        }
 
         public async Task<Result> FollowUserAsync(Guid followerId, Guid followingId)
         {

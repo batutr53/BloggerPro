@@ -28,4 +28,8 @@
     <ProjectReference Include="..\BloggerPro.Shared\BloggerPro.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
 </Project>
