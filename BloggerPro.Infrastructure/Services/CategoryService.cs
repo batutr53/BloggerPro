@@ -3,6 +3,7 @@ using BloggerPro.Application.DTOs.Category;
 using BloggerPro.Application.Interfaces.Services;
 using BloggerPro.Domain.Entities;
 using BloggerPro.Domain.Repositories;
+using BloggerPro.Shared.Extensions;
 using BloggerPro.Shared.Utilities.Results;
 
 namespace BloggerPro.Infrastructure.Services
@@ -21,6 +22,7 @@ namespace BloggerPro.Infrastructure.Services
         public async Task<IResult> CreateAsync(CategoryCreateDto dto)
         {
             var entity = _mapper.Map<Category>(dto);
+            entity.Slug = StringExtensions.GenerateSlug(entity.Name);
             await _uow.Categories.AddAsync(entity);
             await _uow.SaveChangesAsync();
             return new SuccessResult("Kategori oluşturuldu.");

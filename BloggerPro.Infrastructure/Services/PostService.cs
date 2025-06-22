@@ -2,12 +2,14 @@ using AutoMapper;
 using BloggerPro.Application.DTOs.Pagination;
 using BloggerPro.Application.DTOs.Post;
 using BloggerPro.Application.DTOs.PostModule;
+using BloggerPro.Application.DTOs.SeoMetadata;
 using BloggerPro.Application.Interfaces;
 using BloggerPro.Application.Interfaces.Services;
 using BloggerPro.Domain.Constants;
 using BloggerPro.Domain.Entities;
 using BloggerPro.Domain.Enums;
 using BloggerPro.Domain.Repositories;
+using BloggerPro.Shared.Extensions;
 using BloggerPro.Shared.Utilities.Results;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -178,7 +180,7 @@ public class PostService : IPostService
 
     public async Task<DataResult<Guid>> CreatePostAsync(PostCreateDto dto, Guid authorId)
     {
-        // Check if user has permission to create posts
+        // Kullanıcı kontrolü
         var user = await _userManager.FindByIdAsync(authorId.ToString());
         if (user == null)
             return new ErrorDataResult<Guid>("User not found");
@@ -187,25 +189,78 @@ public class PostService : IPostService
         if (!userRoles.Any(r => r == UserRoles.Admin || r == UserRoles.Editor))
             return new ErrorDataResult<Guid>("You don't have permission to create posts");
 
-        // Map and create post
+        // Post oluştur
         var post = _mapper.Map<Post>(dto);
         post.AuthorId = authorId;
         post.Status = PostStatus.Draft;
         post.Visibility = PostVisibility.Public;
         post.CreatedAt = DateTime.UtcNow;
         post.LastModified = DateTime.UtcNow;
+        post.Excerpt = ContentHelper.GenerateExcerpt(dto.Content);
 
-        // Map modules if any
+        // Modüller ve otomatik SEO Metadata
         if (dto.Modules != null && dto.Modules.Any())
         {
-            post.Modules = dto.Modules.Select(m => new PostModule
+            post.Modules = dto.Modules.Select(m =>
             {
-                Type = m.Type,
-                Content = m.Content,
-                MediaUrl = m.MediaUrl,
-                Alignment = m.Alignment,
-                Width = m.Width,
-                SortOrder = m.SortOrder
+                var module = new PostModule
+                {
+                    Type = m.Type,
+                    Content = m.Content,
+                    MediaUrl = m.MediaUrl,
+                    Alignment = m.Alignment,
+                    Width = m.Width,
+                    SortOrder = m.SortOrder,
+                    SeoMetadata = new List<SeoMetadata>()
+                };
+
+                if (m.SeoMetadata != null && m.SeoMetadata.Any())
+                {
+                    module.SeoMetadata = m.SeoMetadata.Select(s => new SeoMetadata
+                    {
+                        Title = s.Title ?? ContentHelper.GenerateTitle(m.Content),
+                        Description = s.Description ?? ContentHelper.GenerateExcerpt(m.Content),
+                        Keywords = s.Keywords ?? "",
+                        LanguageCode = s.LanguageCode ?? "tr",
+                        CanonicalGroupId = s.CanonicalGroupId != Guid.Empty ? s.CanonicalGroupId : Guid.NewGuid()
+                    }).ToList();
+                }
+                else
+                {
+                    module.SeoMetadata = new List<SeoMetadata>
+                {
+                    new SeoMetadata
+                    {
+                        Title = ContentHelper.GenerateTitle(m.Content),
+                        Description = ContentHelper.GenerateExcerpt(m.Content),
+                        Keywords = "",
+                        LanguageCode = "tr",
+                        CanonicalGroupId = Guid.NewGuid()
+                    }
+                };
+                }
+
+                return module;
+            }).ToList();
+        }
+
+        // Kategoriler
+        if (dto.CategoryIds != null && dto.CategoryIds.Any())
+        {
+            post.PostCategories = dto.CategoryIds.Select(categoryId => new PostCategory
+            {
+                PostId = post.Id,
+                CategoryId = categoryId
+            }).ToList();
+        }
+
+        // Etiketler ✅ Eksik olan kısım eklendi
+        if (dto.TagIds != null && dto.TagIds.Any())
+        {
+            post.PostTags = dto.TagIds.Select(tagId => new PostTag
+            {
+                PostId = post.Id,
+                TagId = tagId
             }).ToList();
         }
 
@@ -214,6 +269,7 @@ public class PostService : IPostService
 
         return new SuccessDataResult<Guid>(post.Id, "Post created successfully");
     }
+
 
     public async Task<DataResult<List<PostListDto>>> FilterPostsAsync(PostFilterDto dto)
     {
@@ -278,101 +334,130 @@ public class PostService : IPostService
             .Include(p => p.Modules)
                 .ThenInclude(m => m.SeoMetadata)
             .Include(p => p.PostTags)
+            .Include(p => p.PostCategories)
             .FirstOrDefaultAsync(p => p.Id == dto.Id);
 
         if (post == null)
             return new ErrorResult("Post not found");
 
-        // Check permissions
         if (!await CanUserEditPostAsync(dto.Id, userId))
             return new ErrorResult("You don't have permission to edit this post");
 
-        // Update basic post properties
-        _mapper.Map(dto, post);
+        // Post ana alanlarını güncelle
+        post.Title = dto.Title;
+        post.Slug = dto.Slug;
+        post.Excerpt = dto.Excerpt;
+        post.Content = dto.Content;
+        post.FeaturedImage = dto.CoverImageUrl;
+        post.AllowComments = dto.AllowComments;
+        post.IsFeatured = dto.IsFeatured;
+        post.Status = (PostStatus)dto.Status;
+        post.Visibility = (PostVisibility)dto.Visibility;
+        post.PublishDate = dto.PublishDate;
         post.LastModified = DateTime.UtcNow;
 
-        // Update tags
-        post.PostTags.Clear();
-        if (dto.TagIds != null)
+        // Etiketleri güncelle
+        _unitOfWork.PostTags.DeleteRange(post.PostTags);
+        post.PostTags = dto.TagIds?.Select(tagId => new PostTag
         {
-            foreach (var tagId in dto.TagIds)
-            {
-                post.PostTags.Add(new PostTag { PostId = post.Id, TagId = tagId });
-            }
+            PostId = post.Id,
+            TagId = tagId
+        }).ToList() ?? new List<PostTag>();
+
+        // Kategorileri güncelle
+        _unitOfWork.PostCategories.DeleteRange(post.PostCategories);
+        post.PostCategories = dto.CategoryIds?.Select(catId => new PostCategory
+        {
+            PostId = post.Id,
+            CategoryId = catId
+        }).ToList() ?? new List<PostCategory>();
+
+        // Modülleri ve SEO verilerini sil
+        foreach (var oldModule in post.Modules.ToList())
+        {
+            if (oldModule.SeoMetadata.Any())
+                _unitOfWork.SeoMetadatas.DeleteRange(oldModule.SeoMetadata);
+
+            await _unitOfWork.PostModules.DeleteAsync(oldModule);
         }
+        post.Modules.Clear(); // Temizleme işlemi
 
-
-        // Clear existing modules and SEO metadata
-        var existingModuleIds = post.Modules.Select(m => m.Id).ToList();
-        var existingSeo = await _unitOfWork.SeoMetadatas.Query()
-            .Where(s => s.PostModuleId.HasValue && existingModuleIds.Contains(s.PostModuleId.Value))
-            .ToListAsync();
-        _unitOfWork.SeoMetadatas.DeleteRange(existingSeo);
-        post.Modules.Clear();
-
-        // Add new modules and SEO metadata
-        if (dto.Modules != null)
+        // Yeni modülleri ve SEO'ları ekle
+        if (dto.Modules != null && dto.Modules.Any())
         {
             foreach (var moduleDto in dto.Modules)
             {
+                var moduleId = Guid.NewGuid();
+
                 var module = new PostModule
                 {
-                    Id = Guid.NewGuid(),
+                    Id = moduleId,
                     PostId = post.Id,
                     Type = moduleDto.Type,
                     Content = moduleDto.Content,
                     MediaUrl = moduleDto.MediaUrl,
                     Order = moduleDto.Order,
-                    SortOrder = moduleDto.Order,
+                    SortOrder = moduleDto.SortOrder,
                     Alignment = moduleDto.Alignment,
                     Width = moduleDto.Width
                 };
 
-                if (moduleDto.SeoMetadata != null)
-                {
-                    module.SeoMetadata = new List<SeoMetadata>
-                    {
-                        new SeoMetadata
-                        {
-                            Title = moduleDto.SeoMetadata.Title,
-                            Description = moduleDto.SeoMetadata.Description,
-                            Keywords = moduleDto.SeoMetadata.Keywords,
-                            LanguageCode = moduleDto.SeoMetadata.LanguageCode,
-                            CanonicalGroupId = moduleDto.SeoMetadata.CanonicalGroupId,
-                            PostModuleId = module.Id
-                        }
-                    };
-                }
+                await _unitOfWork.PostModules.AddAsync(module);
 
-                post.Modules.Add(module);
+                var metaList = moduleDto.SeoMetadata?.Select(meta => new SeoMetadata
+                {
+                    Title = meta.Title ?? ContentHelper.GenerateTitle(moduleDto.Content),
+                    Description = meta.Description ?? ContentHelper.GenerateExcerpt(moduleDto.Content),
+                    Keywords = meta.Keywords ?? "",
+                    LanguageCode = meta.LanguageCode ?? "tr",
+                    CanonicalGroupId = meta.CanonicalGroupId != Guid.Empty ? meta.CanonicalGroupId : Guid.NewGuid(),
+                    PostModuleId = moduleId
+                }).ToList() ?? new List<SeoMetadata>();
+
+                if (metaList.Any())
+                    await _unitOfWork.SeoMetadatas.AddRangeAsync(metaList);
             }
         }
 
-
-        await _unitOfWork.Posts.UpdateAsync(post);
+        _unitOfWork.Posts.Update(post);
         await _unitOfWork.SaveChangesAsync();
-
         return new SuccessResult("Post updated successfully");
     }
 
+
     public async Task<Result> DeletePostAsync(Guid id, Guid userId)
     {
-        var post = await _unitOfWork.Posts.GetByIdAsync(id);
+        var post = await _unitOfWork.Posts.Query()
+            .Include(p => p.Modules)
+                .ThenInclude(m => m.SeoMetadata)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
         if (post == null)
             return new ErrorResult("Post not found");
 
-        // Check if user is admin, editor, or post owner
         var user = await _userManager.FindByIdAsync(userId.ToString());
         var userRoles = await _userManager.GetRolesAsync(user);
 
         if (post.AuthorId != userId && !userRoles.Contains(UserRoles.Admin) && !userRoles.Contains(UserRoles.Editor))
             return new ErrorResult("You don't have permission to delete this post");
 
+        // Önce SEO metadata'ları sil
+        foreach (var module in post.Modules)
+        {
+            if (module.SeoMetadata.Any())
+                _unitOfWork.SeoMetadatas.DeleteRange(module.SeoMetadata);
+        }
+
+        // Sonra modülleri sil
+        _unitOfWork.PostModules.DeleteRange(post.Modules);
+
+        // En son post'u sil
         await _unitOfWork.Posts.DeleteAsync(post);
         await _unitOfWork.SaveChangesAsync();
 
         return new SuccessResult("Post deleted successfully");
     }
+
 
     public async Task<DataResult<PostDetailDto>> GetPostByIdAsync(Guid id, Guid? userId = null)
     {
@@ -383,6 +468,7 @@ public class PostService : IPostService
             .Include(p => p.Likes)
             .Include(p => p.Ratings)
             .Include(p => p.Modules)
+                .ThenInclude(m => m.SeoMetadata) // Eksik olan kısım
             .Include(p => p.PostCategories)
                 .ThenInclude(pc => pc.Category)
             .Include(p => p.PostTags)
@@ -392,25 +478,34 @@ public class PostService : IPostService
         if (post == null)
             return new ErrorDataResult<PostDetailDto>("Post not found");
 
-        // Check if user can view the post
+        // Kullanıcının görüntüleme yetkisi var mı?
         if (!await CanUserViewPostAsync(post.Id, userId))
             return new ErrorDataResult<PostDetailDto>("You don't have permission to view this post");
 
+        // DTO'ya mapleme
         var dto = _mapper.Map<PostDetailDto>(post);
-        
-        // Map categories and tags
-        dto.Categories = post.PostCategories?.Select(pc => pc.Category?.Name).Where(name => name != null).ToList() ?? new List<string>();
-        dto.Tags = post.PostTags?.Select(pt => pt.Tag?.Name).Where(name => name != null).ToList() ?? new List<string>();
-        
-        // Check if current user has liked the post and get rating
+
+        // Kategoriler ve etiketler
+        dto.Categories = post.PostCategories?
+            .Select(pc => pc.Category?.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList() ?? new List<string>();
+
+        dto.Tags = post.PostTags?
+            .Select(pt => pt.Tag?.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList() ?? new List<string>();
+
+        // Kullanıcıya özel veriler (like ve rating)
         if (userId.HasValue)
         {
-            dto.IsLikedByCurrentUser = await _unitOfWork.PostLikes.AnyAsync(pl => pl.PostId == id && pl.UserId == userId.Value);
-            
-            // Get user's rating if exists
+            dto.IsLikedByCurrentUser = await _unitOfWork.PostLikes
+                .AnyAsync(pl => pl.PostId == id && pl.UserId == userId.Value);
+
             var userRating = await _unitOfWork.PostRatings
                 .Query()
                 .FirstOrDefaultAsync(pr => pr.PostId == id && pr.UserId == userId.Value);
+
             if (userRating != null)
             {
                 dto.CurrentUserRating = userRating.RatingValue;
@@ -420,10 +515,11 @@ public class PostService : IPostService
         return new SuccessDataResult<PostDetailDto>(dto);
     }
 
+
     public async Task<DataResult<Application.DTOs.Pagination.PaginatedResultDto<PostListDto>>> GetPostsByAuthorIdAsync(Guid authorId, PostFilterDto filter, int page = 1, int pageSize = 10)
     {
         var query = _unitOfWork.Posts.Query()
-            .Where(p => p.AuthorId == authorId && p.IsActive);
+            .Where(p => p.AuthorId == authorId);
 
         // Apply filters
         if (!string.IsNullOrEmpty(filter.Keyword))
@@ -454,14 +550,18 @@ public class PostService : IPostService
 
         // Get total count for pagination
         var totalCount = await query.CountAsync();
-        
+
         // Apply pagination
         var posts = await query
-            .Include(p => p.Comments)
-            .Include(p => p.Likes)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+         .Include(p => p.Comments)
+         .Include(p => p.Likes)
+         .Include(p => p.PostCategories)
+             .ThenInclude(pc => pc.Category)
+         .Include(p => p.PostTags)
+             .ThenInclude(pt => pt.Tag)
+         .Skip((page - 1) * pageSize)
+         .Take(pageSize)
+         .ToListAsync();
 
         var dtos = _mapper.Map<List<PostListDto>>(posts);
         var paginatedResult = new PaginatedResultDto<PostListDto>(dtos, totalCount, page, pageSize);

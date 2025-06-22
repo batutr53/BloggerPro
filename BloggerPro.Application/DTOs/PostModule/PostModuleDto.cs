@@ -13,7 +13,8 @@ namespace BloggerPro.Application.DTOs.PostModule
         public string? Width { get; set; }
         public int Order { get; set; }
         public int SortOrder { get; set; }
-        public SeoMetadataDto? SeoMetadata { get; set; }
+        public List<SeoMetadataDto> SeoMetadata { get; set; } = new();
+
     }
 
 }

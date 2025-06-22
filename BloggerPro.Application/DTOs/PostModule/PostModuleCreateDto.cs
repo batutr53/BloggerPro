@@ -11,6 +11,7 @@ namespace BloggerPro.Application.DTOs.PostModule
         public string? Alignment { get; set; }
         public string? Width { get; set; }
         public int SortOrder { get; set; }
+        public int Order { get; set; }
         public Guid? TagId { get; set; }
 
         public List<SeoMetadataCreateDto>? SeoMetadata { get; set; }

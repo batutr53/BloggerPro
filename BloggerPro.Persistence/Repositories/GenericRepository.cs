@@ -14,7 +14,10 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class, IEnti
     {
         _context = context;
     }
-
+    public async Task AddRangeAsync(IEnumerable<T> entities)
+    {
+        await _context.Set<T>().AddRangeAsync(entities);
+    }
     public async Task<T?> GetByIdAsync(Guid id) => await _context.Set<T>().FindAsync(id);
     public async Task<IReadOnlyList<T>> GetAllAsync() => await _context.Set<T>().ToListAsync();
     public async Task<IReadOnlyList<T>> WhereAsync(Expression<Func<T, bool>> predicate)
@@ -26,8 +29,20 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class, IEnti
     }
     public Task UpdateAsync(T entity)
     {
-        _context.Set<T>().Update(entity);
+        var entry = _context.Entry(entity);
+
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Attach(entity);
+            entry.State = EntityState.Modified;
+        }
+
         return Task.CompletedTask;
+    }
+
+    public void Update(T entity)
+    {
+        _context.Set<T>().Update(entity);
     }
     public Task DeleteAsync(T entity)
     {
@@ -36,7 +51,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class, IEnti
     }
     public void DeleteRange(IEnumerable<T> entities)
     {
-        _context.RemoveRange(entities);
+        _context.Set<T>().RemoveRange(entities);
     }
     public IQueryable<T> Query() => _context.Set<T>().AsQueryable();
     

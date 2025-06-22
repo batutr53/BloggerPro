@@ -3,6 +3,7 @@ using BloggerPro.Application.DTOs.Tag;
 using BloggerPro.Application.Interfaces.Services;
 using BloggerPro.Domain.Entities;
 using BloggerPro.Domain.Repositories;
+using BloggerPro.Shared.Extensions;
 using BloggerPro.Shared.Utilities.Results;
 
 namespace BloggerPro.Infrastructure.Services
@@ -21,6 +22,7 @@ namespace BloggerPro.Infrastructure.Services
         public async Task<IResult> CreateAsync(TagCreateDto dto)
         {
             var entity = _mapper.Map<Tag>(dto);
+            entity.Slug = StringExtensions.GenerateSlug(entity.Name);
             await _uow.Tags.AddAsync(entity);
             await _uow.SaveChangesAsync();
             return new SuccessResult("Etiket başarıyla eklendi.");

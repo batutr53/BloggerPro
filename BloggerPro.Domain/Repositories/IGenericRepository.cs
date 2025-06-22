@@ -12,8 +12,10 @@ public interface IGenericRepository<T> where T : class, IEntity
     Task UpdateAsync(T entity);
     Task DeleteAsync(T entity);
     void DeleteRange(IEnumerable<T> entities);
+    void Update(T entity);
     IQueryable<T> Query();
-    
+    Task AddRangeAsync(IEnumerable<T> entities);
+
     /// <summary>
     /// Finds entities based on a condition
     /// </summary>
