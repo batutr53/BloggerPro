@@ -191,11 +191,25 @@ public class PostService : IPostService
 
         // Post oluştur
         var post = _mapper.Map<Post>(dto);
+        if (dto.Modules != null && dto.Modules.Any())
+        {
+            var textContents = dto.Modules
+               .Where(m => m.Type == PostModuleType.Text && !string.IsNullOrWhiteSpace(m.Content))
+                .OrderBy(m => m.SortOrder)
+                .Select(m => m.Content);
+
+            post.Content = string.Join("\n\n", textContents);
+        }
+        else
+        {
+            post.Content = "[Boş içerik]";
+        }
         post.AuthorId = authorId;
         post.Status = PostStatus.Draft;
         post.Visibility = PostVisibility.Public;
         post.CreatedAt = DateTime.UtcNow;
         post.LastModified = DateTime.UtcNow;
+        post.PublishDate = DateTime.UtcNow;
         post.Excerpt = ContentHelper.GenerateExcerpt(dto.Content);
 
         // Modüller ve otomatik SEO Metadata
@@ -342,7 +356,7 @@ public class PostService : IPostService
 
         if (!await CanUserEditPostAsync(dto.Id, userId))
             return new ErrorResult("You don't have permission to edit this post");
-
+    
         // Post ana alanlarını güncelle
         post.Title = dto.Title;
         post.Slug = dto.Slug;
@@ -353,9 +367,11 @@ public class PostService : IPostService
         post.IsFeatured = dto.IsFeatured;
         post.Status = (PostStatus)dto.Status;
         post.Visibility = (PostVisibility)dto.Visibility;
-        post.PublishDate = dto.PublishDate;
         post.LastModified = DateTime.UtcNow;
-
+        if (post.PublishDate.HasValue)
+        {
+            post.PublishDate = DateTime.SpecifyKind(post.PublishDate.Value, DateTimeKind.Utc);
+        }
         // Etiketleri güncelle
         _unitOfWork.PostTags.DeleteRange(post.PostTags);
         post.PostTags = dto.TagIds?.Select(tagId => new PostTag
@@ -418,6 +434,25 @@ public class PostService : IPostService
                     await _unitOfWork.SeoMetadatas.AddRangeAsync(metaList);
             }
         }
+        var combinedContent = string.IsNullOrWhiteSpace(dto.Content)
+     ? ""
+     : dto.Content.Trim();
+
+        var textModules = dto.Modules?
+            .Where(m => m.Type == PostModuleType.Text && !string.IsNullOrWhiteSpace(m.Content))
+            .OrderBy(m => m.SortOrder)
+            .Select(m => m.Content);
+
+        if (textModules != null && textModules.Any())
+        {
+            if (!string.IsNullOrEmpty(combinedContent))
+                combinedContent += "\n\n";
+
+            combinedContent += string.Join("\n\n", textModules);
+        }
+
+        // Content'i güncelle
+        post.Content = combinedContent;
 
         _unitOfWork.Posts.Update(post);
         await _unitOfWork.SaveChangesAsync();

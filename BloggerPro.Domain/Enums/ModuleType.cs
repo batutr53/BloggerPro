@@ -2,12 +2,12 @@
 {
     public enum ModuleType
     {
-        Text,
-        Image,
-        Video,
-        Quote,
-        ImageLeft,
-        ImageRight,
-        Gallery
+        Paragraph = 1,
+        Image = 2,
+        Video = 3,
+        IFrame = 4,
+        Quote = 5,
+        Heading = 6,
+        Text = 7
     }
 }

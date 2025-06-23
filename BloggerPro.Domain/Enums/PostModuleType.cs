@@ -13,7 +13,8 @@ namespace BloggerPro.Domain.Enums
         Video = 3,
         IFrame = 4,
         Quote = 5,
-        Heading = 6
+        Heading = 6,
+        Text = 7
     }
 
 }
