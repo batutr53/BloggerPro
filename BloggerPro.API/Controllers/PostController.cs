@@ -64,6 +64,14 @@ public class PostController : ControllerBase
         return StatusCode(result.HttpStatusCode, result);
     }
 
+    [HttpPost("GetAllPost")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAllPost(int page = 1, int pageSize = 10)
+    {
+        var result = await _postService.GetAllPostsAsync(page, pageSize);
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
     [Authorize]
     [HttpPost("my-posts")]
     public async Task<IActionResult> GetByAuthor([FromBody] PostFilterDto filter, int page = 1, int pageSize = 10)

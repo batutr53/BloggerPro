@@ -12,6 +12,7 @@ namespace BloggerPro.Application.Interfaces.Services
 {
     public interface IPostService
     {
+        Task<DataResult<PaginatedResultDto<PostListDto>>> GetAllPostsAsync(int page = 1, int pageSize = 20);
         // Post CRUD Operations
         Task<DataResult<Guid>> CreatePostAsync(PostCreateDto dto, Guid authorId);
         Task<DataResult<PostDetailDto>> GetPostByIdAsync(Guid id, Guid? userId = null);

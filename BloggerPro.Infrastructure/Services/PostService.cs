@@ -569,6 +569,37 @@ public class PostService : IPostService
         return new SuccessDataResult<PaginatedResultDto<PostListDto>>(paginatedResult);
     }
 
+
+    public async Task<DataResult<PaginatedResultDto<PostListDto>>> GetAllPostsAsync(int page = 1, int pageSize = 20)
+    {
+        var query = _unitOfWork.Posts.Query();
+
+        // Get total count for pagination
+        var totalCount = await query.CountAsync();
+
+        // Apply pagination
+        var posts = await query
+            .Include(p => p.Modules)
+                .ThenInclude(m => m.SeoMetadata)
+            .Include(p => p.Author)
+            .Include(p => p.Comments)
+            .Include(p => p.Likes)
+            .Include(p => p.PostCategories)
+                .ThenInclude(pc => pc.Category)
+            .Include(p => p.PostTags)
+                .ThenInclude(pt => pt.Tag)
+            .OrderByDescending(p => p.CreatedAt)
+
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var dtos = _mapper.Map<List<PostListDto>>(posts);
+        var paginatedResult = new PaginatedResultDto<PostListDto>(dtos, totalCount, page, pageSize);
+
+        return new SuccessDataResult<PaginatedResultDto<PostListDto>>(paginatedResult);
+    }
+
     public async Task<DataResult<Application.DTOs.Pagination.PaginatedResultDto<PostListDto>>> GetAllPostsAsync(PostFilterDto filter, int page = 1, int pageSize = 10)
     {
         var query = _unitOfWork.Posts.Query()
