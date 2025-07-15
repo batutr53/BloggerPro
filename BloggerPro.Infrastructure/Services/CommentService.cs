@@ -66,4 +66,28 @@ public class CommentService : ICommentService
         var dto = _mapper.Map<List<CommentListDto>>(comments);
         return new SuccessDataResult<List<CommentListDto>>(dto, dto.Count);
     }
+
+    public async Task<DataResult<List<RecentCommentDto>>> GetRecentCommentsAsync(int count)
+    {
+        var comments = await _unitOfWork.Comments.Query()
+            .Include(c => c.User)
+            .Include(c => c.Post)
+            .OrderByDescending(c => c.CreatedAt)
+            .Take(count)
+            .Select(c => new RecentCommentDto
+            {
+                Content = c.Content,
+                UserName = c.User.UserName,
+                CreatedAt = c.CreatedAt,
+                Post = new PostInfo
+                {
+                    Title = c.Post.Title,
+                    ImageUrl = c.Post.FeaturedImage,
+                    Slug = c.Post.Slug
+                }
+            })
+            .ToListAsync();
+
+        return new SuccessDataResult<List<RecentCommentDto>>(comments, comments.Count);
+    }
 }

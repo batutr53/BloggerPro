@@ -8,6 +8,7 @@ public class PostListDto
     public string Title { get; set; } = null!;
     public string Slug { get; set; } = null!;
     public string Excerpt { get; set; } = null!;
+    public string Content { get; set; } = null!;
     public string FeaturedImage { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public DateTime? PublishDate { get; set; }

@@ -14,6 +14,7 @@ public class PostProfile : Profile
         CreateMap<PostModule, PostModuleDto>().ReverseMap();
         // Post to DTO mappings
         CreateMap<Post, PostListDto>()
+            .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
             .ForMember(dest => dest.CommentCount, opt => opt.MapFrom(src => src.Comments.Count))
             .ForMember(dest => dest.LikeCount, opt => opt.MapFrom(src => src.Likes.Count))
              .ForMember(dest => dest.Categories, opt => opt.MapFrom(src => src.PostCategories.Select(pc => pc.Category.Name)))

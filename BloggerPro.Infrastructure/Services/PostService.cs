@@ -11,6 +11,7 @@ using BloggerPro.Domain.Enums;
 using BloggerPro.Domain.Repositories;
 using BloggerPro.Shared.Extensions;
 using BloggerPro.Shared.Utilities.Results;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,18 +23,20 @@ public class PostService : IPostService
     private readonly IMapper _mapper;
     private readonly UserManager<User> _userManager;
     private readonly ICurrentUserService _currentUserService;
-
-    public PostService(
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        UserManager<User> userManager,
-        ICurrentUserService currentUserService)
-    {
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _userManager = userManager;
-        _currentUserService = currentUserService;
-    }
+    private readonly IHtmlSanitizer _htmlSanitizer;
+     public PostService(
+         IUnitOfWork unitOfWork,
+         IMapper mapper,
+         UserManager<User> userManager,
+         ICurrentUserService currentUserService,
+         IHtmlSanitizer htmlSanitizer)
+     {
+         _unitOfWork = unitOfWork;
+         _mapper = mapper;
+         _userManager = userManager;
+         _currentUserService = currentUserService;
+         _htmlSanitizer = htmlSanitizer;
+     }
     // Post Status Management
     public async Task<Result> UpdatePostStatusAsync(Guid postId, PostStatus status, Guid userId, DateTime? publishDate = null)
     {
@@ -191,6 +194,9 @@ public class PostService : IPostService
 
         // Post oluştur
         var post = _mapper.Map<Post>(dto);
+        var sanitizedContent = _htmlSanitizer.Sanitize(dto.Content);
+        post.Content = sanitizedContent;
+
         if (dto.Modules != null && dto.Modules.Any())
         {
             var textContents = dto.Modules
@@ -200,17 +206,14 @@ public class PostService : IPostService
 
             post.Content = string.Join("\n\n", textContents);
         }
-        else
-        {
-            post.Content = "[Boş içerik]";
-        }
+        
         post.AuthorId = authorId;
         post.Status = PostStatus.Draft;
         post.Visibility = PostVisibility.Public;
         post.CreatedAt = DateTime.UtcNow;
         post.LastModified = DateTime.UtcNow;
         post.PublishDate = DateTime.UtcNow;
-        post.Excerpt = ContentHelper.GenerateExcerpt(dto.Content);
+        post.Excerpt = ContentHelper.GenerateExcerpt(post.Content);
 
         // Modüller ve otomatik SEO Metadata
         if (dto.Modules != null && dto.Modules.Any())
@@ -220,7 +223,7 @@ public class PostService : IPostService
                 var module = new PostModule
                 {
                     Type = m.Type,
-                    Content = m.Content,
+                    Content = m.Type == PostModuleType.Text ? _htmlSanitizer.Sanitize(m.Content) : m.Content,
                     MediaUrl = m.MediaUrl,
                     Alignment = m.Alignment,
                     Width = m.Width,
@@ -360,8 +363,8 @@ public class PostService : IPostService
         // Post ana alanlarını güncelle
         post.Title = dto.Title;
         post.Slug = dto.Slug;
-        post.Excerpt = dto.Excerpt;
-        post.Content = dto.Content;
+        post.Content = _htmlSanitizer.Sanitize(dto.Content);
+        post.Excerpt = ContentHelper.GenerateExcerpt(post.Content);
         post.FeaturedImage = dto.CoverImageUrl;
         post.AllowComments = dto.AllowComments;
         post.IsFeatured = dto.IsFeatured;
@@ -410,7 +413,7 @@ public class PostService : IPostService
                     Id = moduleId,
                     PostId = post.Id,
                     Type = moduleDto.Type,
-                    Content = moduleDto.Content,
+                    Content = moduleDto.Type == PostModuleType.Text ? _htmlSanitizer.Sanitize(moduleDto.Content) : moduleDto.Content,
                     MediaUrl = moduleDto.MediaUrl,
                     Order = moduleDto.Order,
                     SortOrder = moduleDto.SortOrder,
@@ -607,6 +610,7 @@ public class PostService : IPostService
 
     public async Task<DataResult<PaginatedResultDto<PostListDto>>> GetAllPostsAsync(int page = 1, int pageSize = 20)
     {
+        // TODO: Optimize this query to not pull Content for all posts, only when needed.
         var query = _unitOfWork.Posts.Query();
 
         // Get total count for pagination
@@ -614,8 +618,6 @@ public class PostService : IPostService
 
         // Apply pagination
         var posts = await query
-            .Include(p => p.Modules)
-                .ThenInclude(m => m.SeoMetadata)
             .Include(p => p.Author)
             .Include(p => p.Comments)
             .Include(p => p.Likes)
@@ -624,12 +626,29 @@ public class PostService : IPostService
             .Include(p => p.PostTags)
                 .ThenInclude(pt => pt.Tag)
             .OrderByDescending(p => p.CreatedAt)
-
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .Select(p => new PostListDto
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Slug = p.Slug,
+                Excerpt = p.Excerpt,
+                Content = p.Content, // Explicitly load content
+                FeaturedImage = p.FeaturedImage,
+                CreatedAt = p.CreatedAt,
+                PublishDate = p.PublishDate,
+                ViewCount = p.ViewCount,
+                LikeCount = p.Likes.Count,
+                CommentCount = p.Comments.Count,
+                AverageRating = p.Ratings.Any() ? p.Ratings.Average(r => r.RatingValue) : 0.0,
+                Author = _mapper.Map<Application.DTOs.User.UserDto>(p.Author),
+                Categories = p.PostCategories.Select(pc => pc.Category.Name).ToList(),
+                Tags = p.PostTags.Select(pt => pt.Tag.Name).ToList()
+            })
             .ToListAsync();
 
-        var dtos = _mapper.Map<List<PostListDto>>(posts);
+        var dtos = posts;
         var paginatedResult = new PaginatedResultDto<PostListDto>(dtos, totalCount, page, pageSize);
 
         return new SuccessDataResult<PaginatedResultDto<PostListDto>>(paginatedResult);
@@ -996,5 +1015,22 @@ public class PostService : IPostService
         };
 
         return new SuccessDataResult<UserPostStatsDto>(stats);
+    }
+
+    public async Task<DataResult<List<PostListDto>>> GetFeaturedPostsAsync(int count)
+    {
+        var posts = await _unitOfWork.Posts.Query()
+            .Where(p => p.IsFeatured)
+            .OrderByDescending(p => p.PublishDate)
+            .Take(count)
+            .Include(p => p.Author)
+            .Include(p => p.Comments)
+            .Include(p => p.Likes)
+            .Include(p => p.PostCategories)
+                .ThenInclude(pc => pc.Category)
+            .ToListAsync();
+
+        var dtos = _mapper.Map<List<PostListDto>>(posts);
+        return new SuccessDataResult<List<PostListDto>>(dtos);
     }
 }

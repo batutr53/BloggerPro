@@ -20,6 +20,7 @@ namespace BloggerPro.Application.Interfaces.Services
         Task<DataResult<PaginatedResultDto<PostListDto>>> GetAllPostsAsync(PostFilterDto filter, int page = 1, int pageSize = 10);
         Task<Result> UpdatePostAsync(PostUpdateDto dto, Guid userId);
         Task<Result> DeletePostAsync(Guid id, Guid userId);
+        Task<DataResult<List<PostListDto>>> GetFeaturedPostsAsync(int count);
         
         // Post Status Management
         Task<Result> UpdatePostStatusAsync(Guid postId, PostStatus status, Guid userId, DateTime? publishDate = null);

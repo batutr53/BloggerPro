@@ -64,7 +64,7 @@ builder.Services.AddCors(options =>
         builder =>
         {
             builder.AllowAnyOrigin()
-                   .AllowAnyMethod()
+                   .WithMethods("POST", "GET", "PUT", "DELETE")
                    .AllowAnyHeader();
         });
 });
@@ -112,6 +112,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "BloggerPro API v1"));
 }
 
+app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthentication();

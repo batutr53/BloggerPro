@@ -57,5 +57,16 @@ namespace BloggerPro.API.Controllers
             var result = await _commentService.GetCommentsByPostAsync(postId);
             return StatusCode(result.HttpStatusCode, result);
         }
+
+        /// <summary>
+        /// Son eklenen yorumları getirir
+        /// </summary>
+        [HttpGet("recent")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetRecentComments([FromQuery] int count = 5)
+        {
+            var result = await _commentService.GetRecentCommentsAsync(count);
+            return StatusCode(result.HttpStatusCode, result);
+        }
     }
 }

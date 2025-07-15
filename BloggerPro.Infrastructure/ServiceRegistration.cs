@@ -2,7 +2,7 @@ using BloggerPro.Application.Interfaces;
 using BloggerPro.Application.Interfaces.Services;
 using BloggerPro.Domain.Entities;
 using BloggerPro.Infrastructure.Services;
-using Microsoft.AspNetCore.Http;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,13 +14,13 @@ public static class ServiceRegistration
     {
         // Add HTTP context accessor
         services.AddHttpContextAccessor();
-        
+
         // Add current user service
         services.AddScoped<ICurrentUserService, CurrentUserService>();
-        
+
         // Add AutoMapper
         services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-        
+
         // Register services
         services.AddScoped<IPostService, PostService>();
         services.AddScoped<IJwtService, JwtService>();
@@ -40,6 +40,7 @@ public static class ServiceRegistration
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAdminModerationService, AdminModerationService>();
+        services.AddSingleton<IHtmlSanitizer, HtmlSanitizer>();
         return services;
     }
 }
