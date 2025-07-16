@@ -517,8 +517,8 @@ public class PostService : IPostService
             return new ErrorDataResult<PostDetailDto>("Post not found");
 
         // Kullanıcının görüntüleme yetkisi var mı?
-        if (!await CanUserViewPostAsync(post.Id, userId))
-            return new ErrorDataResult<PostDetailDto>("You don't have permission to view this post");
+        //if (!await CanUserViewPostAsync(post.Id, userId))
+        //    return new ErrorDataResult<PostDetailDto>("You don't have permission to view this post");
 
         // DTO'ya mapleme
         var dto = _mapper.Map<PostDetailDto>(post);

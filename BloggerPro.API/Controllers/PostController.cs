@@ -31,11 +31,10 @@ public class PostController : ControllerBase
         return StatusCode(result.HttpStatusCode, result);
     }
 
-    [Authorize]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await _postService.GetPostByIdAsync(id, GetUserId());
+        var result = await _postService.GetPostByIdAsync(id);
         return StatusCode(result.HttpStatusCode, result);
     }
 
