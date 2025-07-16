@@ -25,6 +25,8 @@ public class AppDbContext : IdentityDbContext<User, Role, Guid>
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<UserFollower> UserFollowers => Set<UserFollower>();
     public DbSet<PostModule> PostModules => Set<PostModule>();
+    public DbSet<AboutUs> AboutUs => Set<AboutUs>();
+    public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -27,7 +27,9 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<PostModule> PostModules => new GenericRepository<PostModule>(_context);
     public IGenericRepository<Notification> Notifications => new GenericRepository<Notification>(_context);
     public IGenericRepository<UserFollower> UserFollowers => new GenericRepository<UserFollower>(_context);
-
+    public IGenericRepository<Contact> Contacts => new GenericRepository<Contact>(_context);
+    public IGenericRepository<AboutUs> AboutUs => new GenericRepository<AboutUs>(_context);
+    public IGenericRepository<TeamMember> TeamMembers => new GenericRepository<TeamMember>(_context);
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 }

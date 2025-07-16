@@ -1033,4 +1033,28 @@ public class PostService : IPostService
         var dtos = _mapper.Map<List<PostListDto>>(posts);
         return new SuccessDataResult<List<PostListDto>>(dtos);
     }
+
+    public async Task<IResult> IncrementViewCountAsync(Guid postId)
+    {
+        try
+        {
+            var post = await _unitOfWork.Posts.GetByIdAsync(postId);
+            if (post == null)
+                return new ErrorResult("Post bulunamadı.");
+
+            // Sadece yayınlanmış postların görüntülenme sayısını artır
+            if (post.Status != PostStatus.Published)
+                return new ErrorResult("Post yayınlanmamış.");
+
+            post.ViewCount++;
+            await _unitOfWork.Posts.UpdateAsync(post);
+            await _unitOfWork.SaveChangesAsync();
+
+            return new SuccessResult("Görüntülenme sayısı artırıldı.");
+        }
+        catch (Exception ex)
+        {
+            return new ErrorResult($"Görüntülenme sayısı artırılırken hata oluştu: {ex.Message}");
+        }
+    }
 }

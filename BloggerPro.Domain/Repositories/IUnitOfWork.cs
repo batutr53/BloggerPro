@@ -19,7 +19,9 @@ public interface IUnitOfWork
     IGenericRepository<PostModule> PostModules { get; }
     IGenericRepository<Notification> Notifications { get; }
     IGenericRepository<UserFollower> UserFollowers { get; }
-
+    IGenericRepository<Contact> Contacts { get; }
+    IGenericRepository<AboutUs> AboutUs { get; }
+    IGenericRepository<TeamMember> TeamMembers { get; }
 
         
     Task<int> SaveChangesAsync();

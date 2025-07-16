@@ -38,6 +38,14 @@ public class PostController : ControllerBase
         return StatusCode(result.HttpStatusCode, result);
     }
 
+    [HttpPost("{id:guid}/increment-view")]
+    [AllowAnonymous]
+    public async Task<IActionResult> IncrementViewCount(Guid id)
+    {
+        var result = await _postService.IncrementViewCountAsync(id);
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
     [Authorize]
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] PostUpdateDto dto)

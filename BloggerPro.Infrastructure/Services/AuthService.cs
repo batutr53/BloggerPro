@@ -33,6 +33,8 @@ public class AuthService : IAuthService
         {
             Email = dto.Email,
             UserName = dto.Username,
+            FirstName = dto.FirstName,
+            LastName = dto.LastName,
             CreatedAt = DateTime.UtcNow
         };
 

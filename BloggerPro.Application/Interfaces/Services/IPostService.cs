@@ -47,6 +47,9 @@ namespace BloggerPro.Application.Interfaces.Services
         // Stats
         Task<DataResult<PostStatsDto>> GetPostStatsAsync(Guid postId, Guid userId);
         Task<DataResult<UserPostStatsDto>> GetUserPostStatsAsync(Guid userId);
+        
+        // View Count
+        Task<IResult> IncrementViewCountAsync(Guid postId);
     }
     
     public class PostStatsDto

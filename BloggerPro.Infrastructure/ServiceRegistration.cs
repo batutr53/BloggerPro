@@ -40,6 +40,7 @@ public static class ServiceRegistration
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAdminModerationService, AdminModerationService>();
+        services.AddScoped<IContactService, ContactService>();
         services.AddSingleton<IHtmlSanitizer, HtmlSanitizer>();
         return services;
     }
