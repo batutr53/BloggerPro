@@ -22,6 +22,7 @@ public interface IUnitOfWork
     IGenericRepository<Contact> Contacts { get; }
     IGenericRepository<AboutUs> AboutUs { get; }
     IGenericRepository<TeamMember> TeamMembers { get; }
+    IGenericRepository<Footer> Footers { get; }
 
         
     Task<int> SaveChangesAsync();

@@ -41,6 +41,9 @@ public static class ServiceRegistration
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAdminModerationService, AdminModerationService>();
         services.AddScoped<IContactService, ContactService>();
+        services.AddScoped<ITeamMemberService, TeamMemberService>();
+        services.AddScoped<IAboutUsService, AboutUsService>();
+        services.AddScoped<IFooterService, FooterService>();
         services.AddSingleton<IHtmlSanitizer, HtmlSanitizer>();
         return services;
     }

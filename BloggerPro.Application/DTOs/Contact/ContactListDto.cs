@@ -11,4 +11,6 @@ public class ContactListDto
     public DateTime CreatedAt { get; set; }
     public DateTime? RepliedAt { get; set; }
     public string? AdminReply { get; set; }
+    public string? IpAddress { get; set; }
+    public string? UserAgent { get; set; }
 }

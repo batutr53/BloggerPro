@@ -44,7 +44,8 @@ public class ContactService : IContactService
     {
         try
         {
-            var query = _unitOfWork.Contacts.Query();
+            var query = _unitOfWork.Contacts.Query()
+                .Where(c => !c.IsDeleted); // IsDeleted = false olan kayıtları al
 
             if (isReplied.HasValue)
             {

@@ -27,6 +27,8 @@ public class AppDbContext : IdentityDbContext<User, Role, Guid>
     public DbSet<PostModule> PostModules => Set<PostModule>();
     public DbSet<AboutUs> AboutUs => Set<AboutUs>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
+    public DbSet<Contact> Contacts => Set<Contact>();
+    public DbSet<Footer> Footers => Set<Footer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
