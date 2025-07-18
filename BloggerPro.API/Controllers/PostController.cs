@@ -201,4 +201,23 @@ public class PostController : ControllerBase
         var result = await _postService.GetUserPostStatsAsync(GetUserId());
         return StatusCode(result.HttpStatusCode, result);
     }
+
+    [HttpGet("search")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SearchPosts([FromQuery] string keyword, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            return BadRequest(new { success = false, message = "Arama kelimesi gerekli." });
+        }
+
+        var filter = new PostFilterDto
+        {
+            SearchKeyword = keyword,
+            Status = Domain.Enums.PostStatus.Published
+        };
+
+        var result = await _postService.GetAllPostsAsync(filter, page, pageSize);
+        return StatusCode(result.HttpStatusCode, result);
+    }
 }

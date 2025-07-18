@@ -39,6 +39,29 @@ namespace BloggerPro.API.Controllers
             var result = await _postService.GetFeaturedPostsAsync(count);
             return HandleResult(result);
         }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchPosts([FromQuery] string keyword, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+                return BadRequest("Search keyword is required");
+
+            var filter = new PostFilterDto
+            {
+                Keyword = keyword,
+                Status = PostStatus.Published,
+                Visibility = PostVisibility.Public,
+                Page = page,
+                PageSize = pageSize,
+                IncludeAuthor = true,
+                IncludeCategories = true,
+                IncludeTags = true,
+                IncludeStats = false
+            };
+
+            var result = await _postService.GetAllPostsAsync(filter, page, pageSize);
+            return HandleResult(result);
+        }
  
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPost(Guid id)

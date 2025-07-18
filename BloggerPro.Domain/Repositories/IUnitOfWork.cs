@@ -24,6 +24,8 @@ public interface IUnitOfWork
     IGenericRepository<TeamMember> TeamMembers { get; }
     IGenericRepository<Footer> Footers { get; }
     IBookmarkRepository Bookmarks { get; }
+    IGenericRepository<UserActivity> UserActivities { get; }
+    IGenericRepository<ReadingSession> ReadingSessions { get; }
 
         
     Task<int> SaveChangesAsync();

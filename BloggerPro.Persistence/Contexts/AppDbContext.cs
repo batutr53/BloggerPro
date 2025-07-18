@@ -30,6 +30,8 @@ public class AppDbContext : IdentityDbContext<User, Role, Guid>
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<Footer> Footers => Set<Footer>();
     public DbSet<Bookmark> Bookmarks => Set<Bookmark>();
+    public DbSet<UserActivity> UserActivities => Set<UserActivity>();
+    public DbSet<ReadingSession> ReadingSessions => Set<ReadingSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

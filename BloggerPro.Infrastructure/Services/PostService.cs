@@ -1112,4 +1112,34 @@ public class PostService : IPostService
             return new ErrorResult($"Görüntülenme sayısı artırılırken hata oluştu: {ex.Message}");
         }
     }
+
+    public async Task<DataResult<PostDetailDto>> GetPostBySlugAsync(string slug)
+    {
+        try
+        {
+            var post = await _unitOfWork.Posts.Query()
+                .Where(p => p.Slug == slug && p.Status == PostStatus.Published)
+                .Include(p => p.Author)
+                .Include(p => p.Comments)
+                    .ThenInclude(c => c.Author)
+                .Include(p => p.Likes)
+                .Include(p => p.Ratings)
+                .Include(p => p.PostCategories)
+                    .ThenInclude(pc => pc.Category)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
+                .Include(p => p.Modules.OrderBy(m => m.SortOrder))
+                .FirstOrDefaultAsync();
+
+            if (post == null)
+                return new ErrorDataResult<PostDetailDto>("Post bulunamadı.");
+
+            var dto = _mapper.Map<PostDetailDto>(post);
+            return new SuccessDataResult<PostDetailDto>(dto);
+        }
+        catch (Exception ex)
+        {
+            return new ErrorDataResult<PostDetailDto>($"Post getirilirken hata oluştu: {ex.Message}");
+        }
+    }
 }

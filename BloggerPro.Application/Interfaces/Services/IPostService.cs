@@ -51,6 +51,9 @@ namespace BloggerPro.Application.Interfaces.Services
         
         // View Count
         Task<IResult> IncrementViewCountAsync(Guid postId);
+        
+        // Get by slug
+        Task<DataResult<PostDetailDto>> GetPostBySlugAsync(string slug);
     }
     
     public class PostStatsDto
