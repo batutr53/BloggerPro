@@ -38,6 +38,13 @@ public class PostController : ControllerBase
         return StatusCode(result.HttpStatusCode, result);
     }
 
+    [HttpGet("slug/{slug}")]
+    public async Task<IActionResult> GetBySlug(string slug)
+    {
+        var result = await _postService.GetPostBySlugAsync(slug);
+        return StatusCode(result.HttpStatusCode, result);
+    }
+
     [HttpPost("{id:guid}/increment-view")]
     [AllowAnonymous]
     public async Task<IActionResult> IncrementViewCount(Guid id)

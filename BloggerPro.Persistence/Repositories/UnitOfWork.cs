@@ -31,6 +31,7 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<AboutUs> AboutUs => new GenericRepository<AboutUs>(_context);
     public IGenericRepository<TeamMember> TeamMembers => new GenericRepository<TeamMember>(_context);
     public IGenericRepository<Footer> Footers => new GenericRepository<Footer>(_context);
+    public IBookmarkRepository Bookmarks => new BookmarkRepository(_context);
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 }

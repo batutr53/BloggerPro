@@ -16,6 +16,7 @@ namespace BloggerPro.Application.Interfaces.Services
         // Post CRUD Operations
         Task<DataResult<Guid>> CreatePostAsync(PostCreateDto dto, Guid authorId);
         Task<DataResult<PostDetailDto>> GetPostByIdAsync(Guid id, Guid? userId = null);
+        Task<DataResult<PostDetailDto>> GetPostBySlugAsync(string slug, Guid? userId = null);
         Task<DataResult<PaginatedResultDto<PostListDto>>> GetPostsByAuthorIdAsync(Guid authorId, PostFilterDto filter, int page = 1, int pageSize = 10);
         Task<DataResult<PaginatedResultDto<PostListDto>>> GetAllPostsAsync(PostFilterDto filter, int page = 1, int pageSize = 10);
         Task<Result> UpdatePostAsync(PostUpdateDto dto, Guid userId);

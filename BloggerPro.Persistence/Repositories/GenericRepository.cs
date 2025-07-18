@@ -8,7 +8,7 @@ namespace BloggerPro.Persistence.Repositories;
 
 public class GenericRepository<T> : IGenericRepository<T> where T : class, IEntity
 {
-    private readonly AppDbContext _context;
+    protected readonly AppDbContext _context;
 
     public GenericRepository(AppDbContext context)
     {

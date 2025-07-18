@@ -553,6 +553,61 @@ public class PostService : IPostService
         return new SuccessDataResult<PostDetailDto>(dto);
     }
 
+    public async Task<DataResult<PostDetailDto>> GetPostBySlugAsync(string slug, Guid? userId = null)
+    {
+        if (string.IsNullOrEmpty(slug))
+            return new ErrorDataResult<PostDetailDto>("Slug cannot be empty");
+
+        var post = await _unitOfWork.Posts.Query()
+            .Include(p => p.Author)
+            .Include(p => p.Comments)
+                .ThenInclude(c => c.User)
+            .Include(p => p.Likes)
+            .Include(p => p.Ratings)
+            .Include(p => p.Modules)
+                .ThenInclude(m => m.SeoMetadata)
+            .Include(p => p.PostCategories)
+                .ThenInclude(pc => pc.Category)
+            .Include(p => p.PostTags)
+                .ThenInclude(pt => pt.Tag)
+            .FirstOrDefaultAsync(p => p.Slug == slug);
+
+        if (post == null)
+            return new ErrorDataResult<PostDetailDto>("Post not found");
+
+        // DTO'ya mapleme
+        var dto = _mapper.Map<PostDetailDto>(post);
+
+        // Kategoriler ve etiketler
+        dto.Categories = post.PostCategories?
+            .Select(pc => pc.Category?.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList() ?? new List<string>();
+
+        dto.Tags = post.PostTags?
+            .Select(pt => pt.Tag?.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList() ?? new List<string>();
+
+        // Kullanıcıya özel veriler (like ve rating)
+        if (userId.HasValue)
+        {
+            dto.IsLikedByCurrentUser = await _unitOfWork.PostLikes
+                .AnyAsync(pl => pl.PostId == post.Id && pl.UserId == userId.Value);
+
+            var userRating = await _unitOfWork.PostRatings
+                .Query()
+                .FirstOrDefaultAsync(pr => pr.PostId == post.Id && pr.UserId == userId.Value);
+
+            if (userRating != null)
+            {
+                dto.CurrentUserRating = userRating.RatingValue;
+            }
+        }
+
+        return new SuccessDataResult<PostDetailDto>(dto);
+    }
+
 
     public async Task<DataResult<Application.DTOs.Pagination.PaginatedResultDto<PostListDto>>> GetPostsByAuthorIdAsync(Guid authorId, PostFilterDto filter, int page = 1, int pageSize = 10)
     {

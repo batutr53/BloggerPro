@@ -29,6 +29,7 @@ public class AppDbContext : IdentityDbContext<User, Role, Guid>
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<Footer> Footers => Set<Footer>();
+    public DbSet<Bookmark> Bookmarks => Set<Bookmark>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
