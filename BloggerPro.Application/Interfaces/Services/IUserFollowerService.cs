@@ -10,5 +10,8 @@ namespace BloggerPro.Application.Interfaces.Services
         Task<DataResult<List<UserFollowerDto>>> GetUserFollowersAsync(Guid userId, int page = 1, int pageSize = 20);
         Task<DataResult<List<UserFollowerDto>>> GetUserFollowingAsync(Guid userId, int page = 1, int pageSize = 20);
         Task<DataResult<bool>> IsFollowingAsync(Guid followerId, Guid followingId);
+        Task<DataResult<List<UserFollowerDto>>> GetMutualFollowersAsync(Guid userId, Guid otherUserId);
+        Task<DataResult<List<UserRecommendationDto>>> GetUserRecommendationsAsync(Guid userId, int limit = 10);
+        Task<DataResult<bool>> AreMutualFollowersAsync(Guid userId1, Guid userId2);
     }
 }

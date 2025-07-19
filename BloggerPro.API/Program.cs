@@ -1,5 +1,6 @@
 using BloggerPro.Domain.Entities;
 using BloggerPro.Infrastructure;
+using BloggerPro.Infrastructure.Hubs;
 using BloggerPro.Persistence;
 using BloggerPro.Persistence.Contexts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -55,6 +56,21 @@ builder.Services.AddAuthentication(options =>
             ValidAudience = jwtSettings["ValidAudience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]))
         };
+        
+        // Configure JWT for SignalR
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chathub"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 // Add CORS
@@ -67,7 +83,19 @@ builder.Services.AddCors(options =>
                    .WithMethods("POST", "GET", "PUT", "DELETE")
                    .AllowAnyHeader();
         });
+        
+    // CORS policy for SignalR
+    options.AddPolicy("SignalRCors",
+        builder =>
+        {
+            builder.AllowAnyOrigin()
+                   .AllowAnyHeader()
+                   .AllowAnyMethod();
+        });
 });
+
+// Add SignalR
+builder.Services.AddSignalR();
 
 // Add Swagger
 builder.Services.AddSwaggerGen(c =>
@@ -142,5 +170,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapControllers();
+
+// Map SignalR Hub
+app.MapHub<ChatHub>("/chathub");
 
 app.Run();

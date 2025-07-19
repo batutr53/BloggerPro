@@ -34,6 +34,9 @@ public class UnitOfWork : IUnitOfWork
     public IBookmarkRepository Bookmarks => new BookmarkRepository(_context);
     public IGenericRepository<UserActivity> UserActivities => new GenericRepository<UserActivity>(_context);
     public IGenericRepository<ReadingSession> ReadingSessions => new GenericRepository<ReadingSession>(_context);
+    public IGenericRepository<Message> Messages => new GenericRepository<Message>(_context);
+    public IGenericRepository<Conversation> Conversations => new GenericRepository<Conversation>(_context);
+    public IGenericRepository<UserPresence> UserPresences => new GenericRepository<UserPresence>(_context);
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 }

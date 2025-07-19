@@ -71,6 +71,31 @@ namespace BloggerPro.API.Controllers
             return StatusCode(result.HttpStatusCode, result);
         }
 
+        [HttpGet("mutuals/{userId}/{otherUserId}")]
+        public async Task<IActionResult> GetMutualFollowers(Guid userId, Guid otherUserId)
+        {
+            var result = await _userFollowerService.GetMutualFollowersAsync(userId, otherUserId);
+            return StatusCode(result.HttpStatusCode, result);
+        }
+
+        [HttpGet("recommendations")]
+        public async Task<IActionResult> GetRecommendations([FromQuery] int limit = 10)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty)
+                return Unauthorized();
+
+            var result = await _userFollowerService.GetUserRecommendationsAsync(userId, limit);
+            return StatusCode(result.HttpStatusCode, result);
+        }
+
+        [HttpGet("are-mutual/{userId1}/{userId2}")]
+        public async Task<IActionResult> AreMutualFollowers(Guid userId1, Guid userId2)
+        {
+            var result = await _userFollowerService.AreMutualFollowersAsync(userId1, userId2);
+            return StatusCode(result.HttpStatusCode, result);
+        }
+
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

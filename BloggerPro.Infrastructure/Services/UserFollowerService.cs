@@ -119,5 +119,92 @@ namespace BloggerPro.Infrastructure.Services
             return new SuccessDataResult<bool>(isFollowing);
         }
 
+        public async Task<DataResult<List<UserFollowerDto>>> GetMutualFollowersAsync(Guid userId, Guid otherUserId)
+        {
+            // Get users that both userId and otherUserId follow
+            // Get users that current user follows
+            var userFollowingIds = await _unitOfWork.UserFollowers
+                .FindByCondition(uf => uf.FollowerId == userId)
+                .Select(uf => uf.FollowingId)
+                .ToListAsync();
+
+            // Get users that the other user follows
+            var otherUserFollowingIds = await _unitOfWork.UserFollowers
+                .FindByCondition(uf => uf.FollowerId == otherUserId)
+                .Select(uf => uf.FollowingId)
+                .ToListAsync();
+
+            // Find mutual followings
+            var mutualFollowingIds = userFollowingIds.Intersect(otherUserFollowingIds).ToList();
+
+            var mutualFollowing = await _unitOfWork.UserFollowers
+                .FindByCondition(uf => uf.FollowerId == userId && mutualFollowingIds.Contains(uf.FollowingId))
+                .Include(uf => uf.Following)
+                .ToListAsync();
+
+            var result = _mapper.Map<List<UserFollowerDto>>(mutualFollowing);
+            return new SuccessDataResult<List<UserFollowerDto>>(result);
+        }
+
+        public async Task<DataResult<List<UserRecommendationDto>>> GetUserRecommendationsAsync(Guid userId, int limit = 10)
+        {
+            // Get users that are followed by people the current user follows (2nd degree connections)
+            // Get users that are followed by people the current user follows (2nd degree connections)
+            var userFollowings = await _unitOfWork.UserFollowers
+                .FindByCondition(uf => uf.FollowerId == userId)
+                .Select(uf => uf.FollowingId)
+                .ToListAsync();
+
+            var secondDegreeConnections = await _unitOfWork.UserFollowers
+                .FindByCondition(uf => userFollowings.Contains(uf.FollowerId) && uf.FollowingId != userId)
+                .Include(uf => uf.Following)
+                .Include(uf => uf.Follower)
+                .ToListAsync();
+
+            // Filter out users already followed by current user
+            var currentUserFollowings = await _unitOfWork.UserFollowers
+                .FindByCondition(uf => uf.FollowerId == userId)
+                .Select(uf => uf.FollowingId)
+                .ToListAsync();
+
+            var recommendations = secondDegreeConnections
+                .Where(uf => !currentUserFollowings.Contains(uf.FollowingId))
+                .GroupBy(uf => uf.FollowingId)
+                .Select(g => new { 
+                    User = g.First().Following, 
+                    ConnectionCount = g.Count(),
+                    FollowedBy = g.Select(x => x.Follower.UserName).ToList()
+                })
+                .OrderByDescending(x => x.ConnectionCount)
+                .Take(limit)
+                .ToList();
+
+            var result = recommendations.Select(r => new UserRecommendationDto
+            {
+                Id = r.User.Id,
+                UserName = r.User.UserName,
+                FirstName = r.User.FirstName,
+                LastName = r.User.LastName,
+                Bio = r.User.Bio,
+                ProfileImageUrl = r.User.ProfileImageUrl,
+                FollowedBy = r.FollowedBy
+            }).ToList();
+
+            return new SuccessDataResult<List<UserRecommendationDto>>(result);
+        }
+
+        public async Task<DataResult<bool>> AreMutualFollowersAsync(Guid userId1, Guid userId2)
+        {
+            var user1FollowsUser2 = await _unitOfWork.UserFollowers
+                .FindByCondition(uf => uf.FollowerId == userId1 && uf.FollowingId == userId2)
+                .AnyAsync();
+
+            var user2FollowsUser1 = await _unitOfWork.UserFollowers
+                .FindByCondition(uf => uf.FollowerId == userId2 && uf.FollowingId == userId1)
+                .AnyAsync();
+
+            return new SuccessDataResult<bool>(user1FollowsUser2 && user2FollowsUser1);
+        }
+
     }
 }

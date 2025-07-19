@@ -32,6 +32,9 @@ public class AppDbContext : IdentityDbContext<User, Role, Guid>
     public DbSet<Bookmark> Bookmarks => Set<Bookmark>();
     public DbSet<UserActivity> UserActivities => Set<UserActivity>();
     public DbSet<ReadingSession> ReadingSessions => Set<ReadingSession>();
+    public DbSet<Message> Messages => Set<Message>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<UserPresence> UserPresences => Set<UserPresence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

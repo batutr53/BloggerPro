@@ -46,6 +46,9 @@ public static class ServiceRegistration
         services.AddScoped<IFooterService, FooterService>();
         services.AddScoped<IBookmarkService, BookmarkService>();
         services.AddScoped<IUserDashboardService, UserDashboardService>();
+        services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<IUserSearchService, UserSearchService>();
+        services.AddScoped<IPresenceService, PresenceService>();
         services.AddSingleton<IHtmlSanitizer, HtmlSanitizer>();
         return services;
     }

@@ -26,6 +26,9 @@ public interface IUnitOfWork
     IBookmarkRepository Bookmarks { get; }
     IGenericRepository<UserActivity> UserActivities { get; }
     IGenericRepository<ReadingSession> ReadingSessions { get; }
+    IGenericRepository<Message> Messages { get; }
+    IGenericRepository<Conversation> Conversations { get; }
+    IGenericRepository<UserPresence> UserPresences { get; }
 
         
     Task<int> SaveChangesAsync();
