@@ -103,6 +103,8 @@ namespace BloggerPro.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(dto.TwitterUrl)) user.TwitterUrl = dto.TwitterUrl;
             if (!string.IsNullOrWhiteSpace(dto.InstagramUrl)) user.InstagramUrl = dto.InstagramUrl;
             if (!string.IsNullOrWhiteSpace(dto.LinkedInUrl)) user.LinkedInUrl = dto.LinkedInUrl;
+            if (!string.IsNullOrWhiteSpace(dto.TikTokUrl)) user.TikTokUrl = dto.TikTokUrl;
+            if (!string.IsNullOrWhiteSpace(dto.YouTubeUrl)) user.YouTubeUrl = dto.YouTubeUrl;
 
             user.UpdatedAt = DateTime.UtcNow;
 

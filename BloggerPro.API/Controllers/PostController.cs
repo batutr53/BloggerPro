@@ -213,7 +213,7 @@ public class PostController : ControllerBase
 
         var filter = new PostFilterDto
         {
-            SearchKeyword = keyword,
+            Keyword = keyword,
             Status = Domain.Enums.PostStatus.Published
         };
 

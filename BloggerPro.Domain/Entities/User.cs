@@ -25,6 +25,8 @@ public class User : IdentityUser<Guid>, IEntity
     public string? TwitterUrl { get; set; }
     public string? InstagramUrl { get; set; }
     public string? LinkedInUrl { get; set; }
+    public string? TikTokUrl { get; set; }
+    public string? YouTubeUrl { get; set; }
 
     // Navigation
     public ICollection<CommentLike> CommentLikes { get; set; } = new HashSet<CommentLike>();

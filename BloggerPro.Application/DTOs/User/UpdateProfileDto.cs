@@ -15,5 +15,7 @@ namespace BloggerPro.Application.DTOs.User
         public string? TwitterUrl { get; set; }
         public string? InstagramUrl { get; set; }
         public string? LinkedInUrl { get; set; }
+        public string? TikTokUrl { get; set; }
+        public string? YouTubeUrl { get; set; }
     }
 }

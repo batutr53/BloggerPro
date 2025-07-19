@@ -37,5 +37,11 @@ namespace BloggerPro.Application.DTOs.User
 
         [Url(ErrorMessage = "Please enter a valid LinkedIn URL")]
         public string? LinkedInUrl { get; set; }
+
+        [Url(ErrorMessage = "Please enter a valid TikTok URL")]
+        public string? TikTokUrl { get; set; }
+
+        [Url(ErrorMessage = "Please enter a valid YouTube URL")]
+        public string? YouTubeUrl { get; set; }
     }
 }
