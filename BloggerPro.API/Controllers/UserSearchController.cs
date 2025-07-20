@@ -24,12 +24,15 @@ namespace BloggerPro.API.Controllers
         }
 
         [HttpGet("search")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> SearchUsers(
             [FromQuery] string q, 
             [FromQuery] bool mutual = true, 
             [FromQuery] int limit = 20)
         {
             var currentUserId = GetCurrentUserId();
+            if (currentUserId == Guid.Empty)
+                return Unauthorized();
             
             var result = await _userSearchService.SearchUsersAsync(q, currentUserId, mutual, limit);
             return StatusCode(result.HttpStatusCode, result);

@@ -7,6 +7,7 @@
         public string Username { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public int LikeCount { get; set; }
+        public bool HasLiked { get; set; }
         public List<CommentListDto> Replies { get; set; } = new();
     }
 }

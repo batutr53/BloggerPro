@@ -54,7 +54,15 @@ namespace BloggerPro.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetComments(Guid postId)
         {
-            var result = await _commentService.GetCommentsByPostAsync(postId);
+            // Get current user ID if authenticated
+            Guid? currentUserId = null;
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var userId))
+            {
+                currentUserId = userId;
+            }
+
+            var result = await _commentService.GetCommentsByPostAsync(postId, currentUserId);
             return StatusCode(result.HttpStatusCode, result);
         }
 

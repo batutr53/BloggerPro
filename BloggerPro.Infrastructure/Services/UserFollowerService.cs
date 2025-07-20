@@ -5,6 +5,8 @@ using BloggerPro.Application.Interfaces.Services;
 using BloggerPro.Domain.Entities;
 using BloggerPro.Domain.Repositories;
 using BloggerPro.Shared.Utilities.Results;
+using Microsoft.AspNetCore.SignalR;
+using BloggerPro.Infrastructure.Hubs;
 using Microsoft.EntityFrameworkCore;
 
 namespace BloggerPro.Infrastructure.Services
@@ -14,15 +16,18 @@ namespace BloggerPro.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly INotificationService _notificationService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
         public UserFollowerService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IHubContext<ChatHub> hubContext)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _notificationService = notificationService;
+            _hubContext = hubContext;
         }
 
         public async Task<Result> FollowUserAsync(Guid followerId, Guid followingId)
@@ -55,7 +60,7 @@ namespace BloggerPro.Infrastructure.Services
 
             // Create notification
             var follower = await _unitOfWork.Users.GetByIdAsync(followerId);
-            await _notificationService.CreateNotificationAsync(new CreateNotificationDto
+            var notificationResult = await _notificationService.CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = followingId,
                 Message = $"{follower.UserName} sizi takip etmeye başladı.",
@@ -63,6 +68,13 @@ namespace BloggerPro.Infrastructure.Services
                 RelatedEntityId = followerId,
                 RelatedEntityType = "User"
             });
+
+            // Send real-time notification
+            if (notificationResult.Success)
+            {
+                await _hubContext.Clients.Group($"user_{followingId}")
+                    .SendAsync("ReceiveNotification", notificationResult.Data);
+            }
 
             return new SuccessResult("Kullanıcı takip edildi.");
         }

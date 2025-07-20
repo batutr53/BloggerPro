@@ -11,7 +11,7 @@ namespace BloggerPro.Application.Mapping
             CreateMap<Comment, CommentListDto>()
                 .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.User.UserName))
                 .ForMember(dest => dest.LikeCount, opt => opt.MapFrom(src => src.Likes.Count))
-                .ForMember(dest => dest.Replies, opt => opt.MapFrom(src => src.Replies));
+                .ForMember(dest => dest.Replies, opt => opt.MapFrom(src => src.Replies)); // Allow unlimited nested mapping
         }
     }
 }

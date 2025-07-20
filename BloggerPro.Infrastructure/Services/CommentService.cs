@@ -50,26 +50,85 @@ public class CommentService : ICommentService
         return new SuccessResult("Yorum silindi.");
     }
 
-    public async Task<DataResult<List<CommentListDto>>> GetCommentsByPostAsync(Guid postId)
+    public async Task<DataResult<List<CommentListDto>>> GetCommentsByPostAsync(Guid postId, Guid? currentUserId = null)
     {
-        var comments = await _unitOfWork.Comments.Query()
-            .Where(c => c.PostId == postId && c.ParentCommentId == null)
+        // Get all comments for the post (including nested ones)
+        var allComments = await _unitOfWork.Comments.Query()
+            .Where(c => c.PostId == postId)
             .Include(c => c.User)
             .Include(c => c.Likes)
-            .Include(c => c.Replies)
-                .ThenInclude(r => r.User)
-            .Include(c => c.Replies)
-                .ThenInclude(r => r.Likes)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
 
-        var dto = _mapper.Map<List<CommentListDto>>(comments);
+        // Build the hierarchical structure
+        var topLevelComments = allComments
+            .Where(c => c.ParentCommentId == null)
+            .ToList();
+
+        // Recursively load replies for each comment
+        foreach (var comment in topLevelComments)
+        {
+            LoadRepliesRecursively(comment, allComments);
+        }
+
+        var dto = _mapper.Map<List<CommentListDto>>(topLevelComments);
+        
+        // Set HasLiked property for all comments and replies recursively
+        if (currentUserId.HasValue)
+        {
+            SetHasLikedRecursively(dto, currentUserId.Value, allComments);
+        }
+        
         return new SuccessDataResult<List<CommentListDto>>(dto, dto.Count);
+    }
+
+    private void LoadRepliesRecursively(Comment comment, List<Comment> allComments)
+    {
+        var replies = allComments
+            .Where(c => c.ParentCommentId == comment.Id)
+            .OrderBy(c => c.CreatedAt)
+            .ToList();
+
+        comment.Replies = replies;
+
+        // Recursively load replies for each reply
+        foreach (var reply in replies)
+        {
+            LoadRepliesRecursively(reply, allComments);
+        }
+    }
+
+    private void SetHasLikedRecursively(List<CommentListDto> commentDtos, Guid currentUserId, List<Comment> allComments)
+    {
+        foreach (var dto in commentDtos)
+        {
+            SetHasLikedForSingleComment(dto, currentUserId, allComments);
+        }
+    }
+    
+    private void SetHasLikedForSingleComment(CommentListDto dto, Guid currentUserId, List<Comment> allComments)
+    {
+        // Find the original comment by ID
+        var original = allComments.FirstOrDefault(c => c.Id == dto.Id);
+        if (original != null)
+        {
+            // Set HasLiked for this comment
+            dto.HasLiked = original.Likes.Any(l => l.UserId == currentUserId);
+            
+            // Recursively set for replies
+            if (dto.Replies != null && dto.Replies.Any())
+            {
+                foreach (var reply in dto.Replies)
+                {
+                    SetHasLikedForSingleComment(reply, currentUserId, allComments);
+                }
+            }
+        }
     }
 
     public async Task<DataResult<List<RecentCommentDto>>> GetRecentCommentsAsync(int count)
     {
-        var comments = await _unitOfWork.Comments.Query()
+         var comments = await _unitOfWork.Comments.Query()
             .Include(c => c.User)
             .Include(c => c.Post)
             .OrderByDescending(c => c.CreatedAt)

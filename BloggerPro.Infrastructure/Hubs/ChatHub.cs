@@ -1,4 +1,5 @@
 using BloggerPro.Application.Interfaces.Services;
+using BloggerPro.Application.DTOs.Notification;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -10,11 +11,13 @@ namespace BloggerPro.Infrastructure.Hubs
     public class ChatHub : Hub
     {
         private readonly IPresenceService _presenceService;
+        private readonly INotificationService _notificationService;
         private readonly ILogger<ChatHub> _logger;
 
-        public ChatHub(IPresenceService presenceService, ILogger<ChatHub> logger)
+        public ChatHub(IPresenceService presenceService, INotificationService notificationService, ILogger<ChatHub> logger)
         {
             _presenceService = presenceService;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -116,6 +119,13 @@ namespace BloggerPro.Infrastructure.Hubs
                 UserId = senderId,
                 IsTyping = isTyping
             });
+        }
+
+        // Send real-time notification
+        public async Task SendNotification(NotificationDto notification)
+        {
+            await Clients.Group($"user_{notification.UserId}").SendAsync("ReceiveNotification", notification);
+            _logger.LogInformation($"Notification sent to user {notification.UserId}");
         }
 
         private Guid GetUserId()

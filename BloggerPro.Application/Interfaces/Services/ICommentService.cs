@@ -7,7 +7,7 @@ namespace BloggerPro.Application.Interfaces.Services
     {
         Task<DataResult<Guid>> AddCommentAsync(CommentCreateDto dto, Guid userId);
         Task<Result> DeleteCommentAsync(Guid commentId, Guid userId);
-        Task<DataResult<List<CommentListDto>>> GetCommentsByPostAsync(Guid postId);
+        Task<DataResult<List<CommentListDto>>> GetCommentsByPostAsync(Guid postId, Guid? currentUserId = null);
         Task<DataResult<List<RecentCommentDto>>> GetRecentCommentsAsync(int count);
     }
 
